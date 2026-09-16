@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { AshtapadaBoard } from './components/AshtapadaBoard';
@@ -8,6 +8,12 @@ import { RulesModal } from './components/RulesModal';
 import { LobbyModal } from './components/LobbyModal';
 import { useChaturangaGame } from './hooks/useChaturangaGame';
 import { evaluateBoard } from './engine/ai';
+import {
+  getRoomIdFromUrl,
+  updateGameRoomUrl,
+  getGameShareUrl,
+  generateRoomId,
+} from './utils/roomUrl';
 import type { GameMode, AIDifficulty, PieceColor } from './types/game';
 
 export default function App() {
@@ -15,6 +21,7 @@ export default function App() {
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   const [showEvalBar, setShowEvalBar] = useState(true);
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   const {
     board,
@@ -31,6 +38,9 @@ export default function App() {
     aiDifficulty,
     playerColor,
     isMuted,
+    onlineRoomId,
+    onlinePlayerName,
+    socket,
     setMode,
     setAiDifficulty,
     setPlayerColor,
@@ -42,12 +52,31 @@ export default function App() {
     toggleMute,
   } = useChaturangaGame();
 
+  // Listen to browser URL changes (/game/:roomId) and popstate
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const urlRoomId = getRoomIdFromUrl();
+      if (urlRoomId) {
+        setMode('online');
+        setOnlineRoomId(urlRoomId);
+      }
+    };
+
+    // Initial check on mount
+    syncFromUrl();
+
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [setMode, setOnlineRoomId]);
+
   // Mode switching handlers
   const handleSelectMode = (newMode: GameMode) => {
     setMode(newMode);
     if (newMode === 'online') {
       setIsLobbyOpen(true);
     } else {
+      updateGameRoomUrl(null);
+      setOnlineRoomId(null);
       resetGame();
     }
   };
@@ -55,6 +84,7 @@ export default function App() {
   const handleSelectLocal = () => {
     setMode('pass_and_play');
     setOnlineRoomId(null);
+    updateGameRoomUrl(null);
     resetGame();
   };
 
@@ -63,6 +93,7 @@ export default function App() {
     setAiDifficulty(difficulty);
     setPlayerColor(color);
     setOnlineRoomId(null);
+    updateGameRoomUrl(null);
     resetGame();
   };
 
@@ -70,7 +101,28 @@ export default function App() {
     setMode('online');
     setOnlineRoomId(roomId);
     setOnlinePlayerName(playerName);
+    updateGameRoomUrl(roomId);
     resetGame();
+  };
+
+  // Copy Game Room URL handler
+  const handleShareGame = () => {
+    let targetRoom = onlineRoomId;
+    if (!targetRoom || mode !== 'online') {
+      targetRoom = generateRoomId();
+      setMode('online');
+      setOnlineRoomId(targetRoom);
+      updateGameRoomUrl(targetRoom);
+      resetGame();
+    }
+
+    const shareUrl = getGameShareUrl(targetRoom);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setShareToast(`Game room link copied! Send it to your friend to play.`);
+        setTimeout(() => setShareToast(null), 3000);
+      });
+    }
   };
 
   // Compute live engine evaluation score
@@ -96,12 +148,12 @@ export default function App() {
     mode === 'vs_ai'
       ? `Computer (${aiDifficulty === 'novice' ? '1200' : aiDifficulty === 'warrior' ? '1500' : '1800'})`
       : mode === 'online'
-      ? 'Challenger'
+      ? socket.opponentName || 'Awaiting Opponent...'
       : 'Empty Chair';
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#161512] text-[#e3ded7] font-sans">
-      {/* Left Navigation Sidebar matching reference */}
+      {/* Left Navigation Sidebar */}
       <Sidebar
         currentMode={mode}
         onSelectMode={handleSelectMode}
@@ -124,13 +176,49 @@ export default function App() {
         <div className="flex-1 overflow-y-auto flex flex-col xl:flex-row items-center justify-center p-2 sm:p-5 gap-4 lg:gap-8 max-w-7xl mx-auto w-full">
           {/* Middle: Opponent Card + Board + Player Card */}
           <div className="flex flex-col items-center gap-1.5 shrink-0">
+            {/* Online Match Indicator Banner */}
+            {mode === 'online' && onlineRoomId && (
+              <div className="w-full max-w-[340px] sm:max-w-[480px] md:max-w-[540px] lg:max-w-[560px] flex items-center justify-between px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2e2a24] text-xs">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      socket.status === 'connected'
+                        ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                        : socket.status === 'connecting'
+                        ? 'bg-amber-400 animate-pulse'
+                        : 'bg-red-400'
+                    }`}
+                  />
+                  <span className="text-[#8a857d] font-mono text-[11px]">Room:</span>
+                  <span className="font-mono font-semibold text-[#fcd34d] text-[11px]">
+                    {onlineRoomId}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-[#b5b0a8] font-medium">
+                    {socket.assignedColor
+                      ? `Playing as ${socket.assignedColor === 'white' ? 'White ♔' : 'Black ♚'}`
+                      : 'Connecting...'}
+                  </span>
+                  <button
+                    onClick={handleShareGame}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#2a2620] hover:bg-[#38332b] text-[10px] text-[#d4af37] border border-[#d4af37]/30 transition-colors cursor-pointer"
+                    title="Copy game room invite link"
+                  >
+                    <span>Invite</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Opponent Card (Top) */}
             <PlayerCard
               name={opponentName}
               rating={mode === 'vs_ai' ? 1500 : undefined}
-              capturedPieces={capturedBlack}
-              materialAdvantage={materialAdvantageBlack}
-              isActiveTurn={turn === (playerColor === 'white' ? 'black' : 'white')}
+              capturedPieces={playerColor === 'white' ? capturedBlack : capturedWhite}
+              materialAdvantage={playerColor === 'white' ? materialAdvantageBlack : materialAdvantageWhite}
+              isActiveTurn={turn !== playerColor}
             />
 
             {/* The 8x8 Ashtāpada Board matching reference */}
@@ -149,19 +237,19 @@ export default function App() {
               onSquareClick={handleSquareClick}
             />
 
-            {/* Self Player Card (Bottom - as seen in screenshot: jaunty-barbareeka) */}
+            {/* Self Player Card (Bottom) */}
             <PlayerCard
-              name="jaunty-barbareeka"
+              name={mode === 'online' ? onlinePlayerName || 'You' : 'jaunty-barbareeka'}
               rating={1624}
               countryFlag="🇮🇳"
               isSelf={true}
-              capturedPieces={capturedWhite}
-              materialAdvantage={materialAdvantageWhite}
+              capturedPieces={playerColor === 'white' ? capturedWhite : capturedBlack}
+              materialAdvantage={playerColor === 'white' ? materialAdvantageWhite : materialAdvantageBlack}
               isActiveTurn={turn === playerColor}
             />
           </div>
 
-          {/* Right: Tactical Command / Moves Panel matching reference */}
+          {/* Right: Tactical Command / Moves Panel */}
           <div className="w-full xl:w-auto flex justify-center">
             <GamePanel
               moves={moveHistory}
@@ -172,10 +260,20 @@ export default function App() {
               onNewGame={resetGame}
               onOpenRules={() => setIsRulesOpen(true)}
               onResign={() => resignGame(playerColor)}
+              roomId={onlineRoomId}
+              onShare={handleShareGame}
             />
           </div>
         </div>
       </div>
+
+      {/* Copy Toast Feedback */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-[#201e1b] border border-emerald-500/50 text-emerald-300 text-xs font-semibold shadow-2xl flex items-center gap-2 animate-in fade-in duration-150">
+          <span>✓</span>
+          <span>{shareToast}</span>
+        </div>
+      )}
 
       {/* Modals */}
       <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
@@ -183,6 +281,7 @@ export default function App() {
         isOpen={isLobbyOpen}
         currentMode={mode}
         currentDifficulty={aiDifficulty}
+        initialRoomId={onlineRoomId}
         onClose={() => setIsLobbyOpen(false)}
         onSelectLocal={handleSelectLocal}
         onSelectAI={handleSelectAI}

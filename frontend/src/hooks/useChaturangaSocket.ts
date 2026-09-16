@@ -23,67 +23,103 @@ export function useChaturangaSocket({
 
   const socketRef = useRef<WebSocket | null>(null);
 
+  // Keep references to latest callbacks so connect() has a stable identity and doesn't reconnect
+  const onRemoteMoveRef = useRef(onRemoteMove);
+  onRemoteMoveRef.current = onRemoteMove;
+
+  const onRemoteChatRef = useRef(onRemoteChat);
+  onRemoteChatRef.current = onRemoteChat;
+
+  const playerNameRef = useRef(playerName);
+  playerNameRef.current = playerName;
+
   const connect = useCallback(() => {
     if (!roomId) return;
 
-    setStatus('connecting');
-    const wsUrl = import.meta.env.VITE_WS_URL as string;
-    const ws = new WebSocket(wsUrl);
-    socketRef.current = ws;
-
-    ws.onopen = () => {
-      setStatus('connected');
-      // Send join_room
-      const joinMsg = {
-        type: 'join_room',
-        payload: {
-          room_id: roomId,
-          player_name: playerName || 'Warrior',
-        },
-      };
-      ws.send(JSON.stringify(joinMsg));
-    };
-
-    ws.onmessage = event => {
+    // Clean up any stale connection
+    if (socketRef.current) {
       try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'room_joined') {
-          setAssignedColor(data.payload.color);
-          if (data.payload.opponent) {
-            setOpponentName(data.payload.opponent);
-          }
-        } else if (data.type === 'move_made') {
-          const { from_col, from_row, to_col, to_row } = data.payload;
-          if (onRemoteMove) {
-            onRemoteMove({
-              from: { col: from_col, row: from_row },
-              to: { col: to_col, row: to_row },
-            });
-          }
-        } else if (data.type === 'chat_broadcast') {
-          const newChat = {
-            sender: data.payload.sender,
-            text: data.payload.text,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          };
-          setChatLog(prev => [...prev, newChat]);
-          if (onRemoteChat) {
-            onRemoteChat(data.payload);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to parse WebSocket message:', err);
+        socketRef.current.close();
+      } catch {
+        // ignore
       }
-    };
+      socketRef.current = null;
+    }
 
-    ws.onerror = () => {
+    setStatus('connecting');
+
+    const envWsUrl = import.meta.env.VITE_WS_URL;
+    let wsUrl = envWsUrl && typeof envWsUrl === 'string' && envWsUrl.trim() !== '' ? envWsUrl.trim() : '';
+
+    if (!wsUrl) {
+      if (typeof window !== 'undefined') {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.hostname}:3001/ws`;
+      } else {
+        wsUrl = 'ws://localhost:3001/ws';
+      }
+    }
+
+    try {
+      const ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
+
+      ws.onopen = () => {
+        setStatus('connected');
+        const joinMsg = {
+          type: 'join_room',
+          payload: {
+            room_id: roomId,
+            player_name: playerNameRef.current || 'Warrior',
+          },
+        };
+        ws.send(JSON.stringify(joinMsg));
+      };
+
+      ws.onmessage = event => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'room_joined') {
+            setAssignedColor(data.payload.color);
+            if (data.payload.opponent) {
+              setOpponentName(data.payload.opponent);
+            }
+          } else if (data.type === 'move_made') {
+            const { from_col, from_row, to_col, to_row } = data.payload;
+            if (onRemoteMoveRef.current) {
+              onRemoteMoveRef.current({
+                from: { col: from_col, row: from_row },
+                to: { col: to_col, row: to_row },
+              });
+            }
+          } else if (data.type === 'chat_broadcast') {
+            const newChat = {
+              sender: data.payload.sender,
+              text: data.payload.text,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            setChatLog(prev => [...prev, newChat]);
+            if (onRemoteChatRef.current) {
+              onRemoteChatRef.current(data.payload);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
+        }
+      };
+
+      ws.onerror = () => {
+        setStatus('error');
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected');
+      };
+    } catch (err) {
+      console.error('WebSocket connection failed:', err);
       setStatus('error');
-    };
-
-    ws.onclose = () => {
-      setStatus('disconnected');
-    };
-  }, [roomId, playerName, onRemoteMove, onRemoteChat]);
+    }
+  }, [roomId]);
 
   const sendMove = useCallback(
     (from: SquareCoord, to: SquareCoord) => {
@@ -119,22 +155,28 @@ export function useChaturangaSocket({
         setChatLog(prev => [
           ...prev,
           {
-            sender: playerName || 'You',
+            sender: playerNameRef.current || 'You',
             text,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
       }
     },
-    [roomId, playerName]
+    [roomId]
   );
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      socketRef.current.close();
+      try {
+        socketRef.current.close();
+      } catch {
+        // ignore
+      }
       socketRef.current = null;
     }
     setStatus('disconnected');
+    setAssignedColor(null);
+    setOpponentName(null);
   }, []);
 
   useEffect(() => {

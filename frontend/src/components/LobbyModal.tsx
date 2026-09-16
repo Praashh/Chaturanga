@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { X, Users, Bot, Globe } from 'lucide-react';
+import { X, Users, Bot, Globe, Shuffle } from 'lucide-react';
 import type { GameMode, AIDifficulty, PieceColor } from '../types/game';
+import { generateRoomId } from '../utils/roomUrl';
 
 interface LobbyModalProps {
   isOpen: boolean;
   currentMode: GameMode;
   currentDifficulty: AIDifficulty;
+  initialRoomId?: string | null;
   onClose: () => void;
   onSelectLocal: () => void;
   onSelectAI: (difficulty: AIDifficulty, playerColor: PieceColor) => void;
@@ -16,6 +18,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   isOpen,
   currentMode,
   currentDifficulty,
+  initialRoomId,
   onClose,
   onSelectLocal,
   onSelectAI,
@@ -24,7 +27,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   const [selectedTab, setSelectedTab] = useState<GameMode>(currentMode);
   const [aiDiff, setAiDiff] = useState<AIDifficulty>(currentDifficulty);
   const [aiColor, setAiColor] = useState<PieceColor>('white');
-  const [roomId, setRoomId] = useState<string>('royal-chaturanga');
+  const [roomId, setRoomId] = useState<string>(() => initialRoomId || generateRoomId());
   const [playerName, setPlayerName] = useState<string>('Player');
 
   if (!isOpen) return null;
@@ -60,11 +63,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
         <div className="grid grid-cols-3 gap-1.5 p-3 border-b border-[#262421] bg-[#1a1815] text-xs">
           <button
             onClick={() => setSelectedTab('pass_and_play')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${
-              selectedTab === 'pass_and_play'
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${selectedTab === 'pass_and_play'
                 ? 'bg-[#1d4ed8] text-white font-medium shadow-sm'
                 : 'hover:bg-[#262421] text-[#b5b0a8]'
-            }`}
+              }`}
           >
             <Users className="w-3.5 h-3.5" />
             <span>Pass & Play</span>
@@ -72,11 +74,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
           <button
             onClick={() => setSelectedTab('vs_ai')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${
-              selectedTab === 'vs_ai'
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${selectedTab === 'vs_ai'
                 ? 'bg-[#1d4ed8] text-white font-medium shadow-sm'
                 : 'hover:bg-[#262421] text-[#b5b0a8]'
-            }`}
+              }`}
           >
             <Bot className="w-3.5 h-3.5" />
             <span>Vs CPU</span>
@@ -84,11 +85,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
           <button
             onClick={() => setSelectedTab('online')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${
-              selectedTab === 'online'
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${selectedTab === 'online'
                 ? 'bg-[#1d4ed8] text-white font-medium shadow-sm'
                 : 'hover:bg-[#262421] text-[#b5b0a8]'
-            }`}
+              }`}
           >
             <Globe className="w-3.5 h-3.5" />
             <span>Online</span>
@@ -125,11 +125,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     <button
                       key={diff}
                       onClick={() => setAiDiff(diff)}
-                      className={`py-1.5 px-2 rounded-md border text-xs capitalize transition-colors ${
-                        aiDiff === diff
+                      className={`py-1.5 px-2 rounded-md border text-xs capitalize transition-colors ${aiDiff === diff
                           ? 'bg-[#262421] border-[#1d4ed8] text-white font-medium'
                           : 'bg-[#201e1b] border-[#2c2823] text-[#b5b0a8]'
-                      }`}
+                        }`}
                     >
                       {diff}
                     </button>
@@ -144,11 +143,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setAiColor('white')}
-                    className={`py-1.5 px-3 rounded-md border text-xs flex items-center justify-center gap-2 transition-colors ${
-                      aiColor === 'white'
+                    className={`py-1.5 px-3 rounded-md border text-xs flex items-center justify-center gap-2 transition-colors ${aiColor === 'white'
                         ? 'bg-[#262421] border-[#1d4ed8] text-white font-medium'
                         : 'bg-[#201e1b] border-[#2c2823] text-[#b5b0a8]'
-                    }`}
+                      }`}
                   >
                     <span className="w-2.5 h-2.5 rounded-full bg-white" />
                     <span>White (First)</span>
@@ -156,11 +154,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
                   <button
                     onClick={() => setAiColor('black')}
-                    className={`py-1.5 px-3 rounded-md border text-xs flex items-center justify-center gap-2 transition-colors ${
-                      aiColor === 'black'
+                    className={`py-1.5 px-3 rounded-md border text-xs flex items-center justify-center gap-2 transition-colors ${aiColor === 'black'
                         ? 'bg-[#262421] border-[#1d4ed8] text-white font-medium'
                         : 'bg-[#201e1b] border-[#2c2823] text-[#b5b0a8]'
-                    }`}
+                      }`}
                   >
                     <span className="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-zinc-500" />
                     <span>Black</span>
@@ -183,9 +180,20 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           {selectedTab === 'online' && (
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] text-[#8a857d] mb-1 font-medium">
-                  Room Code
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] text-[#8a857d] font-medium">
+                    Room Code
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setRoomId(generateRoomId())}
+                    className="flex items-center gap-1 text-[10px] text-[#d4af37] hover:text-[#fcd34d] transition-colors"
+                    title="Generate unique room code"
+                  >
+                    <Shuffle className="w-3 h-3" />
+                    <span>Roll Random</span>
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={roomId}

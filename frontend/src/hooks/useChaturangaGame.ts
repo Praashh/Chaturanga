@@ -64,40 +64,43 @@ export function useChaturangaGame() {
   // Remote Move Handler for WebSockets
   const handleRemoteMove = useCallback(
     ({ from, to }: { from: SquareCoord; to: SquareCoord }) => {
-      const piece = board[from.row][from.col];
-      if (!piece) return;
+      setBoard(prevBoard => {
+        const piece = prevBoard[from.row][from.col];
+        if (!piece) return prevBoard; // Already executed locally or invalid
 
-      const { newBoard, moveRecord } = executeMove(board, from, to);
-      const nextTurn: PieceColor = turn === 'white' ? 'black' : 'white';
-      const newStatus = evaluateGameStatus(newBoard, nextTurn);
+        const { newBoard, moveRecord } = executeMove(prevBoard, from, to);
+        const nextTurn: PieceColor = piece.color === 'white' ? 'black' : 'white';
+        const newStatus = evaluateGameStatus(newBoard, nextTurn);
 
-      if (moveRecord.captured) {
-        if (turn === 'white') {
-          setCapturedWhite(prev => [...prev, moveRecord.captured!]);
+        if (moveRecord.captured) {
+          if (piece.color === 'white') {
+            setCapturedWhite(prev => [...prev, moveRecord.captured!]);
+          } else {
+            setCapturedBlack(prev => [...prev, moveRecord.captured!]);
+          }
+          playCapture();
         } else {
-          setCapturedBlack(prev => [...prev, moveRecord.captured!]);
+          playMove();
         }
-        playCapture();
-      } else {
-        playMove();
-      }
 
-      setBoard(newBoard);
-      setTurn(nextTurn);
-      setStatus(newStatus);
-      setLastMove(moveRecord);
-      setMoveHistory(prev => [...prev, moveRecord]);
-      setSelectedSquare(null);
-      setLegalMoves([]);
+        setTurn(nextTurn);
+        setStatus(newStatus);
+        setLastMove(moveRecord);
+        setMoveHistory(prev => [...prev, moveRecord]);
+        setSelectedSquare(null);
+        setLegalMoves([]);
 
-      if (newStatus.type !== 'active') {
-        playVictory();
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      } else if (isKingInCheck(newBoard, nextTurn)) {
-        playCheck();
-      }
+        if (newStatus.type !== 'active') {
+          playVictory();
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        } else if (isKingInCheck(newBoard, nextTurn)) {
+          playCheck();
+        }
+
+        return newBoard;
+      });
     },
-    [board, turn, playCapture, playMove, playVictory, playCheck]
+    [playCapture, playMove, playVictory, playCheck]
   );
 
   // WebSocket connection
@@ -106,6 +109,13 @@ export function useChaturangaGame() {
     playerName: onlinePlayerName,
     onRemoteMove: handleRemoteMove,
   });
+
+  // Synchronize board perspective and player card with assigned color in online multiplayer
+  useEffect(() => {
+    if (mode === 'online' && socket.assignedColor) {
+      setPlayerColor(socket.assignedColor);
+    }
+  }, [mode, socket.assignedColor]);
 
   // Make move helper
   const performMove = useCallback(
@@ -281,6 +291,8 @@ export function useChaturangaGame() {
     boardFlipped,
     isMuted,
     canUndo: historyStack.current.length > 0,
+    onlineRoomId,
+    onlinePlayerName,
     socket,
     setMode,
     setAiDifficulty,

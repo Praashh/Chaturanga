@@ -5,6 +5,7 @@ import {
   Sliders,
   BookOpen,
   Share2,
+  Check,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -22,6 +23,8 @@ interface GamePanelProps {
   onNewGame: () => void;
   onOpenRules: () => void;
   onResign: () => void;
+  roomId?: string | null;
+  onShare?: () => void;
 }
 
 export const GamePanel: React.FC<GamePanelProps> = ({
@@ -33,9 +36,32 @@ export const GamePanel: React.FC<GamePanelProps> = ({
   onNewGame,
   onOpenRules,
   onResign,
+  roomId,
+  onShare,
 }) => {
   const [isAnalyzeActive, setIsAnalyzeActive] = useState<boolean>(true);
   const [selectedMoveIndex, setSelectedMoveIndex] = useState<number | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  const handleShare = () => {
+    if (onShare) {
+      onShare();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      return;
+    }
+
+    const shareUrl = roomId
+      ? `${window.location.origin}/game/${encodeURIComponent(roomId)}`
+      : window.location.href;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      });
+    }
+  };
 
   // Group moves into turns (White move, Black move)
   const pairedMoves: { num: number; white?: Move; black?: Move }[] = [];
@@ -129,14 +155,18 @@ export const GamePanel: React.FC<GamePanelProps> = ({
         </button>
 
         <button
-          onClick={() => {
-            navigator.clipboard?.writeText(window.location.href);
-            alert('Game URL copied to clipboard!');
-          }}
-          className="flex flex-col items-center gap-1 p-1.5 rounded-md hover:bg-[#262421] text-[#b5b0a8] hover:text-[#ffffff] transition-colors"
+          onClick={handleShare}
+          className={`flex flex-col items-center gap-1 p-1.5 rounded-md transition-all ${
+            copied
+              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-700/50 shadow-sm'
+              : 'hover:bg-[#262421] text-[#b5b0a8] hover:text-[#ffffff]'
+          }`}
+          title={copied ? 'Game room link copied!' : 'Share Game Room'}
         >
-          <Share2 className="w-4 h-4" />
-          <span className="text-[10px]">Share</span>
+          {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+          <span className={`text-[10px] font-medium ${copied ? 'text-emerald-400 font-bold' : ''}`}>
+            {copied ? 'Copied!' : 'Share'}
+          </span>
         </button>
       </div>
 
