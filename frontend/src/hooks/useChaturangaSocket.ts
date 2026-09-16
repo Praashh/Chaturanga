@@ -27,7 +27,7 @@ export function useChaturangaSocket({
     if (!roomId) return;
 
     setStatus('connecting');
-    const wsUrl = `ws://localhost:3001/ws`;
+    const wsUrl = import.meta.env.VITE_WS_URL as string;
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
