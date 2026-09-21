@@ -173,12 +173,21 @@ export default function App() {
         />
 
         {/* Center Battle Field & Control Panel */}
-        <div className="flex-1 overflow-y-auto flex flex-col xl:flex-row items-center justify-center p-2 sm:p-5 gap-4 lg:gap-8 max-w-7xl mx-auto w-full">
+        <div
+          className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row items-center justify-center p-2 sm:p-3 xl:p-4 gap-3 lg:gap-4 xl:gap-6 w-full ${
+            mode === 'online' && onlineRoomId ? 'online-active' : ''
+          }`}
+        >
           {/* Middle: Opponent Card + Board + Player Card */}
-          <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <div
+            className="flex flex-col items-center gap-1 shrink-0"
+            style={{
+              width: showEvalBar ? 'calc(var(--board-size) + 14px)' : 'var(--board-size)',
+            }}
+          >
             {/* Online Match Indicator Banner */}
             {mode === 'online' && onlineRoomId && (
-              <div className="w-full max-w-[340px] sm:max-w-[480px] md:max-w-[540px] lg:max-w-[560px] flex items-center justify-between px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2e2a24] text-xs">
+              <div className="w-full flex items-center justify-between px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2e2a24] text-xs">
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-2 h-2 rounded-full ${
@@ -250,7 +259,10 @@ export default function App() {
           </div>
 
           {/* Right: Tactical Command / Moves Panel */}
-          <div className="w-full xl:w-auto flex justify-center">
+          <div
+            className="w-full lg:w-[320px] xl:w-[340px] 2xl:w-[360px] flex justify-center shrink-0"
+            style={{ height: 'var(--panel-height)' }}
+          >
             <GamePanel
               moves={moveHistory}
               status={status}

@@ -5,7 +5,7 @@ interface PieceIconProps {
   type: PieceType;
   color: PieceColor;
   className?: string;
-  size?: number;
+  size?: number | string;
   fallen?: boolean;
 }
 
@@ -13,7 +13,7 @@ export const PieceIcon: React.FC<PieceIconProps> = ({
   type,
   color,
   className = '',
-  size = 54,
+  size,
   fallen = false,
 }) => {
   const isWhite = color === 'white';
@@ -346,8 +346,8 @@ export const PieceIcon: React.FC<PieceIconProps> = ({
   return (
     <svg
       viewBox="0 0 100 100"
-      width={size}
-      height={size}
+      width={size ?? '82%'}
+      height={size ?? '82%'}
       className={`select-none pointer-events-none transition-transform duration-200 ${
         fallen ? 'rotate-90 translate-x-2' : ''
       } ${className}`}

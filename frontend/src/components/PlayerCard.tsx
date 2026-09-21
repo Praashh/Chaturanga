@@ -25,7 +25,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
 }) => {
   return (
     <div
-      className={`w-full max-w-[340px] sm:max-w-[480px] md:max-w-[540px] lg:max-w-[560px] flex items-center justify-between py-1.5 px-2 rounded-md transition-colors select-none ${
+      className={`w-full flex items-center justify-between py-1 px-2 rounded-md transition-colors select-none ${
         isActiveTurn ? 'bg-[#262421]/60' : 'bg-transparent'
       }`}
     >

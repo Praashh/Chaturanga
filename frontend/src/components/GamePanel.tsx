@@ -110,7 +110,7 @@ export const GamePanel: React.FC<GamePanelProps> = ({
   const isGameOver = status.type !== 'active';
 
   return (
-    <div className="w-full lg:w-[340px] bg-[#1a1815] border border-[#262421] rounded-lg overflow-hidden flex flex-col h-[520px] sm:h-[580px] lg:h-[640px] shadow-xl text-xs select-none">
+    <div className="w-full lg:w-[320px] xl:w-[340px] 2xl:w-[360px] bg-[#1a1815] border border-[#262421] rounded-lg overflow-hidden flex flex-col shadow-xl text-xs select-none h-full min-h-[440px] lg:min-h-0">
       {/* Top Action Tabs matching screenshot */}
 
       <div className="flex items-center justify-between p-2 border-b border-[#262421] bg-[#161512]">

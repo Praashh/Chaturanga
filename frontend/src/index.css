@@ -28,6 +28,42 @@
   --color-obsidian-700: #263346;
 }
 
+:root {
+  /* Default desktop (1280px+) */
+  --board-size: clamp(320px, min(calc(100dvh - 156px), calc(100dvw - 640px)), 880px);
+  --panel-height: calc(var(--board-size) + 80px);
+}
+
+.online-active {
+  --board-size: clamp(300px, min(calc(100dvh - 190px), calc(100dvw - 640px)), 840px);
+  --panel-height: calc(var(--board-size) + 114px);
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root {
+    --board-size: clamp(300px, min(calc(100dvh - 156px), calc(100dvw - 580px)), 620px);
+    --panel-height: calc(var(--board-size) + 80px);
+  }
+  .online-active {
+    --board-size: clamp(280px, min(calc(100dvh - 190px), calc(100dvw - 580px)), 580px);
+    --panel-height: calc(var(--board-size) + 114px);
+  }
+}
+
+@media (max-width: 1023px) {
+  :root, .online-active {
+    --board-size: clamp(280px, min(calc(100dvw - 24px), calc(100dvh - 300px)), 540px);
+    --panel-height: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  :root, .online-active {
+    --board-size: clamp(260px, min(calc(100dvw - 16px), calc(100dvh - 240px)), 380px);
+    --panel-height: auto;
+  }
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

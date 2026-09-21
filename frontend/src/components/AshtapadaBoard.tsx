@@ -56,10 +56,19 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
   const whiteEvalPct = 50 + (clampedEval / 30) * 100;
 
   return (
-    <div className="relative flex items-center justify-center select-none">
+    <div
+      className="relative flex items-center justify-center select-none shrink-0"
+      style={{
+        width: showEvalBar ? 'calc(var(--board-size) + 14px)' : 'var(--board-size)',
+        height: 'var(--board-size)',
+      }}
+    >
       {/* Seamless Eval Bar (Directly attached to the left with zero gap) */}
       {showEvalBar && (
-        <div className="relative w-3 sm:w-3.5 h-[340px] sm:h-[480px] md:h-[540px] lg:h-[560px] rounded-l overflow-hidden bg-[#1a1815] border-y border-l border-[#3a352f] flex flex-col justify-end shadow-md">
+        <div
+          className="relative w-3.5 rounded-l overflow-hidden bg-[#1a1815] border-y border-l border-[#3a352f] flex flex-col justify-end shadow-md shrink-0"
+          style={{ height: 'var(--board-size)' }}
+        >
           {/* White height fill */}
           <div
             className="w-full bg-[#efdfc8] transition-all duration-400 ease-out"
@@ -73,8 +82,11 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
       )}
 
       {/* 8x8 Chessboard */}
-      <div className={`relative overflow-hidden border border-[#2b2723] shadow-2xl bg-[#1d1b18] ${showEvalBar ? 'rounded-r' : 'rounded'}`}>
-        <div className="grid grid-cols-8 grid-rows-8 w-[340px] h-[340px] sm:w-[480px] sm:h-[480px] md:w-[540px] md:h-[540px] lg:w-[560px] lg:h-[560px] aspect-square">
+      <div
+        className={`relative overflow-hidden border border-[#2b2723] shadow-2xl bg-[#1d1b18] shrink-0 ${showEvalBar ? 'rounded-r' : 'rounded'}`}
+        style={{ width: 'var(--board-size)', height: 'var(--board-size)' }}
+      >
+        <div className="grid grid-cols-8 grid-rows-8 w-full h-full aspect-square">
           {rowIndices.map(row =>
             colIndices.map(col => {
               const piece = board[row][col];
@@ -126,14 +138,14 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                   {/* Coordinates inside corners */}
                   {col === (isFlipped ? 7 : 0) && (
                     <span
-                      className={`absolute top-0.5 left-1 text-[10px] font-sans font-bold leading-none select-none pointer-events-none ${labelColor}`}
+                      className={`absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none ${labelColor}`}
                     >
                       {row + 1}
                     </span>
                   )}
                   {row === (isFlipped ? 7 : 0) && (
                     <span
-                      className={`absolute bottom-0.5 right-1 text-[10px] font-sans font-bold leading-none select-none pointer-events-none lowercase ${labelColor}`}
+                      className={`absolute bottom-0.5 right-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none lowercase ${labelColor}`}
                     >
                       {String.fromCharCode(97 + col)}
                     </span>
@@ -144,10 +156,10 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                       {piece ? (
                         // Target capture ring
-                        <div className="w-[92%] h-[92%] rounded-full border-[3px] border-red-500 bg-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                        <div className="w-[90%] h-[90%] rounded-full border-[3px] border-red-500 bg-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
                       ) : (
                         // Clean glowing green destination dot matching reference
-                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#84cc16] shadow-[0_0_12px_rgba(132,204,22,0.9)] opacity-85" />
+                        <div className="w-[28%] h-[28%] max-w-6 max-h-6 min-w-3 min-h-3 rounded-full bg-[#84cc16] shadow-[0_0_12px_rgba(132,204,22,0.9)] opacity-85" />
                       )}
                     </div>
                   )}
@@ -165,12 +177,11 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
 
                   {/* The Piece */}
                   {piece && (
-                    <div className="relative z-10 flex items-center justify-center w-full h-full">
+                    <div className="relative z-10 flex items-center justify-center w-full h-full p-0.5 sm:p-1">
                       <PieceIcon
                         type={piece.type}
                         color={piece.color}
                         fallen={isFallenKing}
-                        size={window.innerWidth < 640 ? 40 : 58}
                       />
                     </div>
                   )}
