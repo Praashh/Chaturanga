@@ -145,42 +145,91 @@ export const PieceIcon: React.FC<PieceIconProps> = ({
         );
 
       case 'ashva':
-        // Sleek modern Knight silhouette
+        // Classical Staunton Knight / Ashva in harmony with Chaturanga set
         return (
           <g>
+            {/* Pedestal Base matching Raja, Mantri, Padati */}
             <path
-              d="M 22 82 
-                 L 78 82 
-                 L 74 74 
-                 Q 70 64 64 60 
-                 Q 60 56 64 46 
-                 Q 68 36 66 22 
-                 L 58 24 
-                 L 56 16 
-                 L 48 24 
-                 Q 40 30 32 40 
-                 Q 26 48 26 56 
-                 Q 30 58 38 52 
-                 Q 34 62 30 74 
+              d="M 24 82 L 76 82 L 72 74 L 28 74 Z"
+              fill={fill}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              strokeLinejoin="round"
+            />
+            {/* Horse Head & Arched Neck - Complete closed solid path */}
+            <path
+              d="M 28 74 
+                 C 35 73, 40 67, 41 60 
+                 C 42 54, 38 50, 34 47 
+                 C 31 49, 28 51, 25 51 
+                 C 21 51, 19 48, 20 45 
+                 C 21 41, 25 37, 30 33 
+                 C 37 28, 43 21, 47 16 
+                 L 50 10 
+                 L 54 15 
+                 L 57 11 
+                 L 59 16 
+                 C 65 21, 68 28, 69 36 
+                 C 70 45, 71 55, 71 65 
+                 C 71 69, 72 72, 72 74 
                  Z"
               fill={fill}
               stroke={stroke}
               strokeWidth={strokeWidth}
               strokeLinejoin="round"
             />
-            {/* Jaw contour */}
+            {/* Eye */}
+            <circle
+              cx="41"
+              cy="28"
+              r="2.5"
+              fill={isWhite ? '#1c1917' : '#ffffff'}
+            />
+            {/* Nostril */}
+            <ellipse
+              cx="25"
+              cy="44"
+              rx="1.5"
+              ry="1"
+              fill={isWhite ? '#1c1917' : '#ffffff'}
+            />
+            {/* Mouth slit */}
             <path
-              d="M 26 56 Q 30 58 38 52"
+              d="M 21 46 Q 25 47 28 45"
+              fill="none"
+              stroke={detailColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            {/* Jaw / cheek muscle contour */}
+            <path
+              d="M 33 46 Q 39 42 43 34"
               fill="none"
               stroke={detailColor}
               strokeWidth="2"
+              strokeLinecap="round"
             />
-            {/* Eye */}
-            <circle
-              cx="44"
-              cy="34"
-              r="2.5"
-              fill={isWhite ? '#1c1917' : '#ffffff'}
+            {/* Mane crest accents */}
+            <path
+              d="M 64 26 Q 59 29 57 35"
+              fill="none"
+              stroke={detailColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d="M 67 39 Q 61 42 59 48"
+              fill="none"
+              stroke={detailColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d="M 69 52 Q 63 55 61 61"
+              fill="none"
+              stroke={detailColor}
+              strokeWidth="2"
+              strokeLinecap="round"
             />
           </g>
         );
