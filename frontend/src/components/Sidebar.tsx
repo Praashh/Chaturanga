@@ -49,9 +49,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed md:static top-0 left-0 bottom-0 z-50 w-52 bg-[#161512] border-r border-[#262421] flex flex-col justify-between py-3 px-2 overflow-y-auto select-none transition-transform duration-200 text-[#b5b0a8] text-xs font-medium shrink-0 ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}
+        className={`fixed md:static top-0 left-0 bottom-0 z-50 w-52 bg-[#161512] border-r border-[#262421] flex flex-col justify-between py-3 px-2 overflow-y-auto select-none transition-transform duration-200 text-[#b5b0a8] text-xs font-medium shrink-0 ${isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          }`}
       >
         {/* Brand Logo */}
         <div>
@@ -68,11 +67,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <nav className="space-y-1">
             <button
               onClick={() => handleModeClick('pass_and_play')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
-                currentMode === 'pass_and_play'
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'pass_and_play'
                   ? 'bg-[#262421] text-[#ffffff] font-semibold'
                   : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-              }`}
+                }`}
             >
               <Home className="w-4 h-4 text-[#8a857d]" />
               <span>Home</span>
@@ -80,11 +78,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <button
               onClick={() => handleModeClick('vs_ai')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
-                currentMode === 'vs_ai'
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'vs_ai'
                   ? 'bg-[#262421] text-[#ffffff] font-semibold'
                   : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-              }`}
+                }`}
             >
               <Monitor className="w-4 h-4 text-[#8a857d]" />
               <span>Player vs CPU</span>
@@ -92,11 +89,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <button
               onClick={() => handleModeClick('online')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left relative ${
-                currentMode === 'online'
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left relative ${currentMode === 'online'
                   ? 'bg-[#262421] text-[#ffffff] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#d4af37] before:rounded-r'
                   : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-              }`}
+                }`}
             >
               <Users className="w-4 h-4 text-[#8a857d]" />
               <span>Player vs Player</span>
@@ -194,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-white text-xs truncate">{user?.name}</p>
                   <p className="text-[10px] text-[#fcd34d] font-mono">
-                    Rating: {user?.rating || 1500}
+                    Rating: {user?.rating}
                   </p>
                 </div>
               </div>
