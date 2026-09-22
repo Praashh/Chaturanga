@@ -10,7 +10,8 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import type { GameMode } from '../types/game';
-
+import { useAuth } from '../context/AuthContext';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 interface SidebarProps {
   currentMode: GameMode;
@@ -27,6 +28,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
 }) => {
+  const { user, isAuthenticated, logout, promptGoogleSignIn } = useAuth();
+
+  const handleModeClick = (mode: GameMode) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    onSelectMode(mode);
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -42,7 +53,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-
         {/* Brand Logo */}
         <div>
           <div className="flex items-center gap-2.5 px-3 py-2 mb-3">
@@ -57,40 +67,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Core Game Modes */}
           <nav className="space-y-1">
             <button
-              onClick={() => onSelectMode('pass_and_play')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'pass_and_play'
-                ? 'bg-[#262421] text-[#ffffff] font-semibold'
-                : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-                }`}
+              onClick={() => handleModeClick('pass_and_play')}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+                currentMode === 'pass_and_play'
+                  ? 'bg-[#262421] text-[#ffffff] font-semibold'
+                  : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
+              }`}
             >
               <Home className="w-4 h-4 text-[#8a857d]" />
               <span>Home</span>
             </button>
 
             <button
-              onClick={() => onSelectMode('vs_ai')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'vs_ai'
-                ? 'bg-[#262421] text-[#ffffff] font-semibold'
-                : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-                }`}
+              onClick={() => handleModeClick('vs_ai')}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
+                currentMode === 'vs_ai'
+                  ? 'bg-[#262421] text-[#ffffff] font-semibold'
+                  : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
+              }`}
             >
               <Monitor className="w-4 h-4 text-[#8a857d]" />
               <span>Player vs CPU</span>
             </button>
 
             <button
-              onClick={() => onSelectMode('online')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left relative ${currentMode === 'online'
-                ? 'bg-[#262421] text-[#ffffff] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#d4af37] before:rounded-r'
-                : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-                }`}
+              onClick={() => handleModeClick('online')}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left relative ${
+                currentMode === 'online'
+                  ? 'bg-[#262421] text-[#ffffff] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#d4af37] before:rounded-r'
+                  : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
+              }`}
             >
               <Users className="w-4 h-4 text-[#8a857d]" />
               <span>Player vs Player</span>
             </button>
 
             <button
-              onClick={() => onSelectMode('pass_and_play')}
+              onClick={() => handleModeClick('pass_and_play')}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
             >
               <User className="w-4 h-4 text-[#8a857d]" />
@@ -100,7 +113,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Learn & Explore Navigation */}
           <div className="mt-4 pt-3 border-t border-[#262421] space-y-0.5">
-            <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left">
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  promptGoogleSignIn();
+                  return;
+                }
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
+            >
               <Puzzle className="w-4 h-4 text-[#8a857d]" />
               <span>Puzzles</span>
             </button>
@@ -140,17 +161,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Follow on X</span>
           </a>
 
-          <div className="px-3 text-[10px] font-semibold tracking-wider text-[#635f58] uppercase mt-2">
-            Sign In
-          </div>
+          {!isAuthenticated ? (
+            <div className="space-y-1.5">
+              <div className="px-3 text-[10px] font-semibold tracking-wider text-[#635f58] uppercase">
+                Sign In
+              </div>
 
-          <button
-            onClick={() => alert('Sign-in integration is ready for your OAuth credentials!')}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#201e1b] hover:bg-[#2a2824] border border-[#2c2823] text-[#d4cfc7] text-left transition-colors"
-          >
-            <span className="text-red-400 font-bold">G</span>
-            <span>Sign in with Google</span>
-          </button>
+              <div className="w-full px-1">
+                <GoogleSignInButton
+                  type="standard"
+                  theme="filled_white"
+                  size="medium"
+                  shape="pill"
+                  width="100%"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="p-2.5 rounded-lg bg-[#201e1b] border border-[#2c2823] space-y-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full border border-[#d4af37] bg-[#2a241c] overflow-hidden flex items-center justify-center shrink-0">
+                  {user?.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs">🥷</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-white text-xs truncate">{user?.name}</p>
+                  <p className="text-[10px] text-[#fcd34d] font-mono">
+                    Rating: {user?.rating || 1500}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={logout}
+                className="w-full py-1 text-[11px] rounded bg-[#262421] hover:bg-red-950/50 hover:text-red-300 text-[#8a857d] transition-colors cursor-pointer text-center"
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>

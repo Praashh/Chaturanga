@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Users, Bot, Globe, Shuffle } from 'lucide-react';
 import type { GameMode, AIDifficulty, PieceColor } from '../types/game';
 import { generateRoomId } from '../utils/roomUrl';
+import { useAuth } from '../context/AuthContext';
 
 interface LobbyModalProps {
   isOpen: boolean;
@@ -24,11 +25,18 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   onSelectAI,
   onSelectOnline,
 }) => {
+  const { user, isAuthenticated, promptGoogleSignIn } = useAuth();
   const [selectedTab, setSelectedTab] = useState<GameMode>(currentMode);
   const [aiDiff, setAiDiff] = useState<AIDifficulty>(currentDifficulty);
   const [aiColor, setAiColor] = useState<PieceColor>('white');
   const [roomId, setRoomId] = useState<string>(() => initialRoomId || generateRoomId());
-  const [playerName, setPlayerName] = useState<string>('Player');
+  const [playerName, setPlayerName] = useState<string>(() => user?.name || 'Player');
+
+  useEffect(() => {
+    if (user?.name) {
+      setPlayerName(user.name);
+    }
+  }, [user?.name]);
 
   if (!isOpen) return null;
 
@@ -104,6 +112,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
               </p>
               <button
                 onClick={() => {
+                  if (!isAuthenticated) {
+                    promptGoogleSignIn();
+                    return;
+                  }
                   onSelectLocal();
                   onClose();
                 }}
@@ -167,6 +179,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
               <button
                 onClick={() => {
+                  if (!isAuthenticated) {
+                    promptGoogleSignIn();
+                    return;
+                  }
                   onSelectAI(aiDiff, aiColor);
                   onClose();
                 }}
@@ -218,6 +234,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
 
               <button
                 onClick={() => {
+                  if (!isAuthenticated) {
+                    promptGoogleSignIn();
+                    return;
+                  }
                   onSelectOnline(roomId, playerName);
                   onClose();
                 }}

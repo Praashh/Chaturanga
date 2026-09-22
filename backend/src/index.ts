@@ -2,6 +2,7 @@ import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { Board } from './engine/board';
 import type { ClientMessage, ServerMessage } from './ws/messages';
+import { authPlugin } from './auth';
 
 interface PlayerSession {
   name: string;
@@ -18,14 +19,24 @@ interface Room {
 // In-memory room manager
 const rooms = new Map<string, Room>();
 
+const PORT = Number(process.env.PORT) || 3001;
+
 const app = new Elysia()
-  .use(cors())
+  .use(
+    cors({
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  )
+  .use(authPlugin)
   .get('/api/health', () => ({
     status: 'online',
     service: 'chaturanga-backend',
     runtime: 'bun + elysia',
     timestamp: new Date().toISOString(),
-    message: 'Chaturanga Bun + Elysia server is active. Ready for your engine logic!',
+    message: 'Chaturanga Bun + Elysia server with Prisma v8 PostgreSQL & Google OAuth is active.',
   }))
   .ws('/ws', {
     open(ws) {
@@ -164,8 +175,9 @@ const app = new Elysia()
       }
     },
   })
-  .listen(3001);
+  .listen(PORT);
 
-console.log(`🕉️  Chaturanga Backend (Bun + Elysia) listening on http://localhost:3001`);
-console.log(`📡 WebSocket endpoint ready at ws://localhost:3001/ws`);
-console.log(`🩺 Health check available at http://localhost:3001/api/health`);
+console.log(`🕉️  Chaturanga Backend (Bun + Elysia + Prisma 7) listening on http://localhost:${PORT}`);
+console.log(`📡 WebSocket endpoint ready at ws://localhost:${PORT}/ws`);
+console.log(`🩺 Health check available at http://localhost:${PORT}/api/health`);
+console.log(`🔑 Auth endpoints ready at http://localhost:${PORT}/api/auth`);

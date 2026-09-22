@@ -6,6 +6,7 @@ interface PlayerCardProps {
   name: string;
   rating?: number;
   avatarIcon?: string;
+  avatarUrl?: string | null;
   isSelf?: boolean;
   countryFlag?: string;
   capturedPieces: Piece[];
@@ -17,6 +18,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   name,
   rating = 1600,
   avatarIcon,
+  avatarUrl,
   isSelf = false,
   countryFlag = '🇮🇳',
   capturedPieces,
@@ -33,7 +35,9 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       {/* Left: Avatar + Identity */}
       <div className="flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-full bg-[#2a2824] border border-[#3d3832] flex items-center justify-center text-sm overflow-hidden shadow-sm">
-          {avatarIcon ? (
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+          ) : avatarIcon ? (
             <span className="text-base">{avatarIcon}</span>
           ) : isSelf ? (
             <span className="text-base">🥷</span>

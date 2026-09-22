@@ -6,6 +6,8 @@ import { PlayerCard } from './components/PlayerCard';
 import { GamePanel } from './components/GamePanel';
 import { RulesModal } from './components/RulesModal';
 import { LobbyModal } from './components/LobbyModal';
+import { GoogleSignInButton } from './components/GoogleSignInButton';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { useChaturangaGame } from './hooks/useChaturangaGame';
 import { evaluateBoard } from './engine/ai';
 import {
@@ -14,14 +16,16 @@ import {
   getGameShareUrl,
   generateRoomId,
 } from './utils/roomUrl';
-import type { GameMode, AIDifficulty, PieceColor } from './types/game';
+import type { GameMode, AIDifficulty, PieceColor, SquareCoord } from './types/game';
 
-export default function App() {
+function ChaturangaApp() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   const [showEvalBar, setShowEvalBar] = useState(true);
   const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const { user, isAuthenticated, isLoading, promptGoogleSignIn } = useAuth();
 
   const {
     board,
@@ -51,7 +55,14 @@ export default function App() {
     resetGame,
     resignGame,
     toggleMute,
-  } = useChaturangaGame();
+  } = useChaturangaGame({ isAuthenticated });
+
+  // Synchronize authenticated user's name with online player identity
+  useEffect(() => {
+    if (user?.name) {
+      setOnlinePlayerName(user.name);
+    }
+  }, [user?.name, setOnlinePlayerName]);
 
   // Listen to browser URL changes (/game/:roomId) and popstate
   useEffect(() => {
@@ -72,6 +83,10 @@ export default function App() {
 
   // Mode switching handlers
   const handleSelectMode = (newMode: GameMode) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
     setMode(newMode);
     if (newMode === 'online') {
       setIsLobbyOpen(true);
@@ -83,6 +98,10 @@ export default function App() {
   };
 
   const handleSelectLocal = () => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
     setMode('pass_and_play');
     setOnlineRoomId(null);
     updateGameRoomUrl(null);
@@ -90,6 +109,10 @@ export default function App() {
   };
 
   const handleSelectAI = (difficulty: AIDifficulty, color: PieceColor) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
     setMode('vs_ai');
     setAiDifficulty(difficulty);
     setPlayerColor(color);
@@ -99,6 +122,10 @@ export default function App() {
   };
 
   const handleSelectOnline = (roomId: string, playerName: string) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
     setMode('online');
     setOnlineRoomId(roomId);
     setOnlinePlayerName(playerName);
@@ -108,6 +135,10 @@ export default function App() {
 
   // Copy Game Room URL handler
   const handleShareGame = () => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
     let targetRoom = onlineRoomId;
     if (!targetRoom || mode !== 'online') {
       targetRoom = generateRoomId();
@@ -124,6 +155,39 @@ export default function App() {
         setTimeout(() => setShareToast(null), 3000);
       });
     }
+  };
+
+  // Guarded board interaction handlers
+  const handleBoardSquareClick = (coord: SquareCoord) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    handleSquareClick(coord);
+  };
+
+  const handleBoardMove = (from: SquareCoord, to: SquareCoord) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    handleMove(from, to);
+  };
+
+  const handleNewGame = () => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    resetGame();
+  };
+
+  const handleResign = () => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    resignGame(playerColor);
   };
 
   // Compute live engine evaluation score
@@ -225,38 +289,81 @@ export default function App() {
             {/* Opponent Card (Top) */}
             <PlayerCard
               name={opponentName}
-              rating={mode === 'vs_ai' ? 1500 : undefined}
+              rating={mode === 'vs_ai' ? (aiDifficulty === 'novice' ? 1200 : aiDifficulty === 'warrior' ? 1500 : 1800) : undefined}
               capturedPieces={playerColor === 'white' ? capturedBlack : capturedWhite}
               materialAdvantage={playerColor === 'white' ? materialAdvantageBlack : materialAdvantageWhite}
               isActiveTurn={turn !== playerColor}
             />
 
             {/* The 8x8 Ashtāpada Board matching reference */}
-            <AshtapadaBoard
-              board={board}
-              turn={turn}
-              playerColor={playerColor}
-              legalMoves={legalMoves}
-              selectedSquare={selectedSquare}
-              lastMove={lastMove}
-              inCheck={inCheck}
-              isResignedOrMated={resignedOrMatedColor}
-              evaluationScore={evalScore}
-              showEvalBar={showEvalBar}
-              interactive={status.type === 'active'}
-              onSquareClick={handleSquareClick}
-              onMove={handleMove}
-            />
+            <div className="relative shrink-0 w-full flex justify-center">
+              <AshtapadaBoard
+                board={board}
+                turn={turn}
+                playerColor={playerColor}
+                legalMoves={legalMoves}
+                selectedSquare={selectedSquare}
+                lastMove={lastMove}
+                inCheck={inCheck}
+                isResignedOrMated={resignedOrMatedColor}
+                evaluationScore={evalScore}
+                showEvalBar={showEvalBar}
+                interactive={status.type === 'active' && isAuthenticated}
+                onSquareClick={handleBoardSquareClick}
+                onMove={handleBoardMove}
+              />
+
+              {/* Unauthenticated Lock Overlay */}
+              {!isAuthenticated && !isLoading && (
+                <div
+                  onClick={promptGoogleSignIn}
+                  className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/65 backdrop-blur-[2px] rounded cursor-pointer transition-all duration-300"
+                  title="Click to sign in with Google"
+                >
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    className="flex flex-col items-center text-center p-6 rounded-2xl bg-[#1c1a17]/95 border border-[#3d3830] shadow-[0_20px_50px_rgba(0,0,0,0.85)] max-w-[280px] sm:max-w-[320px] animate-in fade-in zoom-in-95 duration-200"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-[#262421] border border-[#d4af37]/40 flex items-center justify-center text-2xl shadow-inner mb-3">
+                      👑
+                    </div>
+                    <h3 className="font-serif font-bold text-base sm:text-lg text-[#fcd34d] tracking-wide mb-1">
+                      Sign in to Play
+                    </h3>
+                    <p className="text-[11px] text-[#b5b0a8] mb-4 leading-relaxed">
+                      Sign in with Google to make moves, battle players, and track your rating.
+                    </p>
+                    <div className="w-full flex justify-center">
+                      <GoogleSignInButton
+                        type="standard"
+                        theme="filled_white"
+                        size="large"
+                        shape="pill"
+                        width={240}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Self Player Card (Bottom) */}
             <PlayerCard
-              name={mode === 'online' ? onlinePlayerName || 'You' : 'jaunty-barbareeka'}
-              rating={1624}
-              countryFlag="🇮🇳"
+              name={
+                user
+                  ? user.name
+                  : mode === 'online'
+                  ? onlinePlayerName || 'You'
+                  : 'Sign in to Play'
+              }
+              rating={user ? user.rating : undefined}
+              avatarUrl={user?.picture}
+              avatarIcon={!user ? '👑' : undefined}
+              countryFlag={user ? '🇮🇳' : undefined}
               isSelf={true}
               capturedPieces={playerColor === 'white' ? capturedWhite : capturedBlack}
               materialAdvantage={playerColor === 'white' ? materialAdvantageWhite : materialAdvantageBlack}
-              isActiveTurn={turn === playerColor}
+              isActiveTurn={isAuthenticated && turn === playerColor}
             />
           </div>
 
@@ -271,9 +378,9 @@ export default function App() {
               turn={turn}
               showEvalBar={showEvalBar}
               onToggleEvalBar={() => setShowEvalBar(prev => !prev)}
-              onNewGame={resetGame}
+              onNewGame={handleNewGame}
               onOpenRules={() => setIsRulesOpen(true)}
-              onResign={() => resignGame(playerColor)}
+              onResign={handleResign}
               roomId={onlineRoomId}
               onShare={handleShareGame}
             />
@@ -302,5 +409,13 @@ export default function App() {
         onSelectOnline={handleSelectOnline}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ChaturangaApp />
+    </AuthProvider>
   );
 }

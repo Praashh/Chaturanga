@@ -31,7 +31,12 @@ interface BoardSnapshot {
   lastMove: Move | null;
 }
 
-export function useChaturangaGame() {
+interface UseChaturangaGameOptions {
+  isAuthenticated?: boolean;
+}
+
+export function useChaturangaGame(options?: UseChaturangaGameOptions) {
+  const isAuthenticated = options?.isAuthenticated ?? true;
   const [board, setBoard] = useState<(Piece | null)[][]>(() => createInitialBoard());
   const [turn, setTurn] = useState<PieceColor>('white');
   const [status, setStatus] = useState<GameStatus>({ type: 'active' });
@@ -103,9 +108,9 @@ export function useChaturangaGame() {
     [playCapture, playMove, playVictory, playCheck]
   );
 
-  // WebSocket connection
+  // WebSocket connection (only connects when room exists AND player is authenticated)
   const socket = useChaturangaSocket({
-    roomId: onlineRoomId,
+    roomId: isAuthenticated ? onlineRoomId : null,
     playerName: onlinePlayerName,
     onRemoteMove: handleRemoteMove,
   });
@@ -120,7 +125,7 @@ export function useChaturangaGame() {
   // Make move helper
   const performMove = useCallback(
     (from: SquareCoord, to: SquareCoord) => {
-      if (status.type !== 'active') return;
+      if (!isAuthenticated || status.type !== 'active') return;
 
       // Save snapshot for undo
       historyStack.current.push({
@@ -170,13 +175,13 @@ export function useChaturangaGame() {
         socket.sendMove(from, to);
       }
     },
-    [board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playMove, playVictory, playCheck, mode, socket]
+    [isAuthenticated, board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playMove, playVictory, playCheck, mode, socket]
   );
 
   // Handle Square Selection and Clicking
   const handleSquareClick = useCallback(
     (coord: SquareCoord) => {
-      if (status.type !== 'active') return;
+      if (!isAuthenticated || status.type !== 'active') return;
 
       // In vs AI mode, lock out player clicks during AI turn
       if (mode === 'vs_ai' && turn !== playerColor) return;
@@ -205,13 +210,13 @@ export function useChaturangaGame() {
         setLegalMoves([]);
       }
     },
-    [board, turn, status, mode, playerColor, socket.assignedColor, selectedSquare, legalMoves, performMove]
+    [isAuthenticated, board, turn, status, mode, playerColor, socket.assignedColor, selectedSquare, legalMoves, performMove]
   );
 
   // Handle Drag-and-Drop Direct Move Execution
   const handleMove = useCallback(
     (from: SquareCoord, to: SquareCoord) => {
-      if (status.type !== 'active') return;
+      if (!isAuthenticated || status.type !== 'active') return;
 
       // In vs AI mode, lock out player moves during AI turn
       if (mode === 'vs_ai' && turn !== playerColor) return;
@@ -238,12 +243,12 @@ export function useChaturangaGame() {
         }
       }
     },
-    [status.type, mode, turn, playerColor, socket.assignedColor, board, performMove]
+    [isAuthenticated, status.type, mode, turn, playerColor, socket.assignedColor, board, performMove]
   );
 
   // Trigger AI move when it's AI's turn
   useEffect(() => {
-    if (mode !== 'vs_ai' || status.type !== 'active') return;
+    if (!isAuthenticated || mode !== 'vs_ai' || status.type !== 'active') return;
 
     const aiColor: PieceColor = playerColor === 'white' ? 'black' : 'white';
     if (turn === aiColor) {
@@ -255,7 +260,7 @@ export function useChaturangaGame() {
       }, 450); // slight breathing delay for lifelike feel
       return () => clearTimeout(timer);
     }
-  }, [mode, status, turn, playerColor, board, aiDifficulty, performMove]);
+  }, [isAuthenticated, mode, status, turn, playerColor, board, aiDifficulty, performMove]);
 
   // Restart / Reset game
   const resetGame = useCallback(() => {
