@@ -208,6 +208,39 @@ export function useChaturangaGame() {
     [board, turn, status, mode, playerColor, socket.assignedColor, selectedSquare, legalMoves, performMove]
   );
 
+  // Handle Drag-and-Drop Direct Move Execution
+  const handleMove = useCallback(
+    (from: SquareCoord, to: SquareCoord) => {
+      if (status.type !== 'active') return;
+
+      // In vs AI mode, lock out player moves during AI turn
+      if (mode === 'vs_ai' && turn !== playerColor) return;
+
+      // In online mode, lock out player moves if not your turn
+      if (mode === 'online' && socket.assignedColor && turn !== socket.assignedColor) return;
+
+      const piece = board[from.row][from.col];
+      if (!piece || piece.color !== turn) return;
+
+      const moves = getLegalMoves(board, from);
+      const isLegal = moves.some(m => m.col === to.col && m.row === to.row);
+      if (isLegal) {
+        performMove(from, to);
+      } else {
+        // If target square has player's own piece, select that instead
+        const targetPiece = board[to.row][to.col];
+        if (targetPiece && targetPiece.color === turn) {
+          setSelectedSquare(to);
+          setLegalMoves(getLegalMoves(board, to));
+        } else if (from.col === to.col && from.row === to.row) {
+          setSelectedSquare(from);
+          setLegalMoves(moves);
+        }
+      }
+    },
+    [status.type, mode, turn, playerColor, socket.assignedColor, board, performMove]
+  );
+
   // Trigger AI move when it's AI's turn
   useEffect(() => {
     if (mode !== 'vs_ai' || status.type !== 'active') return;
@@ -300,6 +333,7 @@ export function useChaturangaGame() {
     setOnlineRoomId,
     setOnlinePlayerName,
     handleSquareClick,
+    handleMove,
     resetGame,
     resignGame,
     undoMove,

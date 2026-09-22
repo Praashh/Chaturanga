@@ -47,6 +47,7 @@ export default function App() {
     setOnlineRoomId,
     setOnlinePlayerName,
     handleSquareClick,
+    handleMove,
     resetGame,
     resignGame,
     toggleMute,
@@ -244,6 +245,7 @@ export default function App() {
               showEvalBar={showEvalBar}
               interactive={status.type === 'active'}
               onSquareClick={handleSquareClick}
+              onMove={handleMove}
             />
 
             {/* Self Player Card (Bottom) */}
