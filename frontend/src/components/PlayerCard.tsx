@@ -1,9 +1,10 @@
 import React from 'react';
-import { User } from 'lucide-react';
+import { User, UserPlus, UserCheck, Clock } from 'lucide-react';
 import type { Piece } from '../types/game';
 
 interface PlayerCardProps {
   name: string;
+  username?: string;
   rating?: number;
   avatarIcon?: string;
   avatarUrl?: string | null;
@@ -12,10 +13,13 @@ interface PlayerCardProps {
   capturedPieces: Piece[];
   materialAdvantage?: number;
   isActiveTurn?: boolean;
+  onAddFriend?: () => void;
+  friendshipStatus?: 'friend' | 'pending_sent' | 'pending_received' | 'none' | null;
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
   name,
+  username,
   rating = 1600,
   avatarIcon,
   avatarUrl,
@@ -24,6 +28,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   capturedPieces,
   materialAdvantage = 0,
   isActiveTurn = false,
+  onAddFriend,
+  friendshipStatus,
 }) => {
   return (
     <div
@@ -49,11 +55,33 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[#e3ded7]">
             {isSelf && countryFlag && <span>{countryFlag}</span>}
-            <span>{name}</span>
+            <span>{username || name}</span>
             {rating && (
               <span className="text-[#8a857d] font-normal font-mono text-[11px]">
                 ({rating})
               </span>
+            )}
+            {!isSelf && onAddFriend && (
+              friendshipStatus === 'friend' ? (
+                <span className="text-[10px] text-emerald-400 flex items-center gap-0.5 ml-0.5" title="Allied Warrior">
+                  <UserCheck className="w-3 h-3" />
+                </span>
+              ) : friendshipStatus === 'pending_sent' ? (
+                <span className="text-[10px] text-amber-400 flex items-center gap-0.5 ml-0.5" title="Friend Request Pending">
+                  <Clock className="w-3 h-3" />
+                </span>
+              ) : (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    onAddFriend();
+                  }}
+                  className="p-1 rounded hover:bg-[#353028] text-[#d4af37] hover:text-[#fef08a] transition-colors cursor-pointer ml-0.5"
+                  title="Add as Friend"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                </button>
+              )
             )}
           </div>
 

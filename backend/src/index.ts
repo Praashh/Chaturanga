@@ -3,8 +3,10 @@ import { cors } from '@elysiajs/cors';
 import { Board } from './engine/board';
 import type { ClientMessage, ServerMessage } from './ws/messages';
 import { authPlugin } from './auth';
+import { friendsPlugin } from './friends';
 
 interface PlayerSession {
+  id?: string;
   name: string;
   color: 'white' | 'black';
   ws: any;
@@ -40,6 +42,7 @@ const app = new Elysia()
     })
   )
   .use(authPlugin)
+  .use(friendsPlugin)
   .get('/api/health', () => ({
     status: 'online',
     service: 'chaturanga-backend',
@@ -71,7 +74,7 @@ const app = new Elysia()
           }
 
           case 'join_room': {
-            const { room_id, player_name } = msg.payload;
+            const { room_id, player_name, player_id } = msg.payload;
             let room = rooms.get(room_id);
 
             if (!room) {
@@ -88,6 +91,7 @@ const app = new Elysia()
               room.players.length === 0 ? 'white' : 'black';
 
             const newPlayer: PlayerSession = {
+              id: player_id,
               name: player_name || 'Warrior',
               color: assignedColor,
               ws,
@@ -102,6 +106,7 @@ const app = new Elysia()
                 room_id,
                 color: assignedColor,
                 opponent: opponent ? opponent.name : null,
+                opponent_id: opponent ? opponent.id : null,
               },
             };
             ws.send(JSON.stringify(resp));
@@ -114,6 +119,7 @@ const app = new Elysia()
                   room_id,
                   color: opponent.color,
                   opponent: player_name,
+                  opponent_id: player_id || null,
                 },
               };
               opponent.ws.send(JSON.stringify(notifyOpponent));
@@ -149,8 +155,8 @@ const app = new Elysia()
                 id: roomId,
                 board: new Board(),
                 players: [
-                  { name: opponent.playerName, color: 'white', ws: opponent.ws },
-                  { name: player_name, color: 'black', ws },
+                  { id: opponent.playerId, name: opponent.playerName, color: 'white', ws: opponent.ws },
+                  { id: player_id, name: player_name, color: 'black', ws },
                 ],
               };
 
@@ -164,6 +170,7 @@ const app = new Elysia()
                     room_id: roomId,
                     color: 'white',
                     opponent: player_name,
+                    opponent_id: player_id,
                   },
                 })
               );
@@ -176,6 +183,7 @@ const app = new Elysia()
                     room_id: roomId,
                     color: 'black',
                     opponent: opponent.playerName,
+                    opponent_id: opponent.playerId,
                   },
                 })
               );

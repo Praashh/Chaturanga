@@ -1,13 +1,20 @@
 import React, { useRef, useEffect } from 'react';
-import { LogOut, Trophy, Swords, User as UserIcon } from 'lucide-react';
+import { LogOut, Trophy, Swords, User as UserIcon, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface ProfileDropdownProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenFriends?: () => void;
+  friendsCount?: number;
 }
 
-export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isOpen, onClose }) => {
+export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
+  isOpen,
+  onClose,
+  onOpenFriends,
+  friendsCount,
+}) => {
   const { user, logout } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -45,8 +52,10 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isOpen, onClos
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-white truncate text-sm">{user.name}</p>
-          <p className="text-[11px] text-[#8a857d] font-mono truncate">{user.email}</p>
+          <p className="font-semibold text-white truncate text-sm">
+            {user.username ? `@${user.username}` : user.name}
+          </p>
+          <p className="text-[11px] text-[#8a857d] font-mono truncate">{user.name}</p>
         </div>
       </div>
 
@@ -77,6 +86,23 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ isOpen, onClos
         <span>Matches: {user.gamesPlayed}</span>
         <span>Won: {user.gamesWon}</span>
       </div>
+
+      {/* Friends Button */}
+      <button
+        onClick={() => {
+          onClose();
+          onOpenFriends?.();
+        }}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#201e1b] hover:bg-[#262421] text-white border border-[#2c2823] transition-colors font-medium cursor-pointer mb-2"
+      >
+        <div className="flex items-center gap-2">
+          <Users className="w-3.5 h-3.5 text-[#d4af37]" />
+          <span>Friends & Allies</span>
+        </div>
+        {friendsCount !== undefined && (
+          <span className="text-[11px] text-[#8a857d] font-mono">{friendsCount}</span>
+        )}
+      </button>
 
       {/* Sign Out Button */}
       <button

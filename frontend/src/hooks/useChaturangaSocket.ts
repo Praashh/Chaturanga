@@ -8,7 +8,12 @@ interface UseChaturangaSocketProps {
   playerName: string;
   onRemoteMove?: (move: { from: SquareCoord; to: SquareCoord }) => void;
   onRemoteChat?: (chat: { sender: string; text: string }) => void;
-  onMatchFound?: (roomId: string, color: 'white' | 'black', opponent: string) => void;
+  onMatchFound?: (
+    roomId: string,
+    color: 'white' | 'black',
+    opponent: string,
+    opponentId?: string | null
+  ) => void;
   onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black' }) => void;
 }
 
@@ -23,6 +28,7 @@ export function useChaturangaSocket({
   const [status, setStatus] = useState<SocketStatus>('disconnected');
   const [assignedColor, setAssignedColor] = useState<'white' | 'black' | null>(null);
   const [opponentName, setOpponentName] = useState<string | null>(null);
+  const [opponentId, setOpponentId] = useState<string | null>(null);
   const [chatLog, setChatLog] = useState<{ sender: string; text: string; time: string }[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
@@ -89,6 +95,7 @@ export function useChaturangaSocket({
     setStatus('disconnected');
     setAssignedColor(null);
     setOpponentName(null);
+    setOpponentId(null);
   }, []);
 
   const initSocket = useCallback(() => {
@@ -146,11 +153,15 @@ export function useChaturangaSocket({
             if (data.payload.opponent) {
               setOpponentName(data.payload.opponent);
             }
+            if (data.payload.opponent_id) {
+              setOpponentId(data.payload.opponent_id);
+            }
             if (onMatchFoundRef.current) {
               onMatchFoundRef.current(
                 data.payload.room_id,
                 data.payload.color,
-                data.payload.opponent || 'Opponent'
+                data.payload.opponent || 'Opponent',
+                data.payload.opponent_id || null
               );
             }
           } else if (data.type === 'move_made') {
@@ -351,6 +362,7 @@ export function useChaturangaSocket({
     status,
     assignedColor,
     opponentName,
+    opponentId,
     chatLog,
     isSearching,
     findMatch,

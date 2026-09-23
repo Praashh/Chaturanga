@@ -1,7 +1,13 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { OAuth2Client } from 'google-auth-library';
-import { upsertUser, getUserById, type UserRecord } from './db';
+import {
+  upsertUser,
+  getUserById,
+  isUsernameAvailable,
+  completeUserOnboarding,
+  type UserRecord,
+} from './db';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID as string;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET as string;
@@ -86,6 +92,7 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
           sub: user.id,
           email: user.email,
           name: user.name,
+          username: user.username,
         });
 
         return {
@@ -134,6 +141,96 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
     };
   })
 
+  // Check username availability in real-time
+  .get(
+    '/check-username',
+    async ({ query, headers, sessionJwt }) => {
+      const username = query.username || '';
+      let currentUserId: string | undefined;
+
+      const authHeader = headers['authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const payload = await sessionJwt.verify(authHeader.substring(7));
+          if (payload && typeof payload === 'object' && 'sub' in payload && payload.sub) {
+            currentUserId = payload.sub as string;
+          }
+        } catch {
+          // Ignore invalid token on check
+        }
+      }
+
+      const result = await isUsernameAvailable(username, currentUserId);
+      if (!result.available) {
+        return {
+          available: false,
+          error: result.error,
+        };
+      }
+
+      return {
+        available: true,
+        username: result.cleanUsername,
+      };
+    },
+    {
+      query: t.Object({
+        username: t.String(),
+      }),
+    }
+  )
+
+  // Complete onboarding by claiming chosen username
+  .post(
+    '/onboard',
+    async ({ body, headers, sessionJwt, set }) => {
+      const authHeader = headers['authorization'];
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        set.status = 401;
+        return { error: 'Unauthorized: Authentication token required' };
+      }
+
+      const token = authHeader.substring(7);
+      let payload: any;
+      try {
+        payload = await sessionJwt.verify(token);
+      } catch {
+        set.status = 401;
+        return { error: 'Unauthorized: Invalid or expired token' };
+      }
+
+      if (!payload || !payload.sub) {
+        set.status = 401;
+        return { error: 'Unauthorized: Invalid token payload' };
+      }
+
+      const result = await completeUserOnboarding(payload.sub as string, body.username);
+      if (!result.success || !result.user) {
+        set.status = 400;
+        return { error: result.error || 'Failed to complete onboarding' };
+      }
+
+      // Generate updated session token with new username
+      const newToken = await sessionJwt.sign({
+        sub: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        username: result.user.username,
+      });
+
+      return {
+        success: true,
+        token: newToken,
+        user: result.user,
+      };
+    },
+    {
+      body: t.Object({
+        username: t.String(),
+      }),
+    }
+  )
+
   // Server-side OAuth redirect callback endpoint (as fallback if popup is blocked)
   .get('/google/callback', async ({ query, sessionJwt, set, redirect }) => {
     const code = query.code as string | undefined;
@@ -168,9 +265,11 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
         sub: user.id,
         email: user.email,
         name: user.name,
+        username: user.username,
       });
 
-      return redirect(`${FRONTEND_URL}/?token=${token}`);
+      const targetPath = user.onboarded ? '/' : '/onboard';
+      return redirect(`${FRONTEND_URL}${targetPath}?token=${token}`);
     } catch (err) {
       console.error('OAuth callback failed:', err);
       return redirect(`${FRONTEND_URL}/?error=oauth_failed`);

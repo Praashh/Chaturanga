@@ -214,12 +214,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
   }, [token, logout]);
 
+  // Complete Onboarding by claiming chosen username
+  const completeOnboarding = useCallback(
+    async (username: string): Promise<{ success: boolean; error?: string }> => {
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/onboard`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ username }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success && data.user) {
+          if (data.token) {
+            localStorage.setItem(TOKEN_KEY, data.token);
+            setToken(data.token);
+          }
+          setUser(data.user);
+          return { success: true };
+        } else {
+          return { success: false, error: data.error || 'Failed to complete onboarding' };
+        }
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Network error completing onboarding' };
+      }
+    },
+    [token]
+  );
+
   const value: AuthContextType = {
     user,
     token,
     isAuthenticated: !!user,
     isLoading,
     loginWithGoogleCredential,
+    completeOnboarding,
     logout,
     promptGoogleSignIn,
     error,

@@ -4,6 +4,7 @@ import {
   Monitor,
   Users,
   User,
+  UserPlus,
   Puzzle,
   BookOpen,
   GraduationCap,
@@ -17,6 +18,8 @@ interface SidebarProps {
   currentMode: GameMode;
   onSelectMode: (mode: GameMode) => void;
   onOpenRules: () => void;
+  onOpenFriends?: () => void;
+  incomingRequestsCount?: number;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onFindMatch?: () => void;
@@ -26,6 +29,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentMode,
   onSelectMode,
   onOpenRules,
+  onOpenFriends,
+  incomingRequestsCount = 0,
   isOpenMobile,
   onCloseMobile,
   onFindMatch,
@@ -121,6 +126,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <User className="w-4 h-4 text-[#8a857d]" />
               <span>Play vs Self</span>
             </button>
+
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  promptGoogleSignIn();
+                  return;
+                }
+                onOpenFriends?.();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <UserPlus className="w-4 h-4 text-[#d4af37]" />
+                <span>Friends</span>
+              </div>
+              {incomingRequestsCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {incomingRequestsCount}
+                </span>
+              )}
+            </button>
           </nav>
 
           {/* Learn & Explore Navigation */}
@@ -204,7 +230,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-white text-xs truncate">{user?.name}</p>
+                  <p className="font-semibold text-white text-xs truncate">
+                    {user?.username ? `@${user.username}` : user?.name}
+                  </p>
                   <p className="text-[10px] text-[#fcd34d] font-mono">
                     Rating: {user?.rating}
                   </p>

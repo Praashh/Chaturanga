@@ -8,6 +8,8 @@ interface TopBarProps {
   isMuted: boolean;
   onToggleMute: () => void;
   onOpenSettings: () => void;
+  onOpenFriends?: () => void;
+  friendsCount?: number;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -15,6 +17,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   isMuted,
   onToggleMute,
   onOpenSettings,
+  onOpenFriends,
+  friendsCount,
 }) => {
   const { user, isAuthenticated, promptGoogleSignIn } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -91,6 +95,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           <ProfileDropdown
             isOpen={isDropdownOpen}
             onClose={() => setIsDropdownOpen(false)}
+            onOpenFriends={onOpenFriends}
+            friendsCount={friendsCount}
           />
         </div>
       </div>

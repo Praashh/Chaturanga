@@ -7,9 +7,12 @@ import { GamePanel } from './components/GamePanel';
 import { RulesModal } from './components/RulesModal';
 import { LobbyModal } from './components/LobbyModal';
 import { MatchmakingModal } from './components/MatchmakingModal';
+import { FriendsModal } from './components/FriendsModal';
+import { OnboardingPage } from './components/OnboardingPage';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useChaturangaGame } from './hooks/useChaturangaGame';
+import { useFriends } from './hooks/useFriends';
 import { evaluateBoard } from './engine/ai';
 import {
   getRoomIdFromUrl,
@@ -18,15 +21,52 @@ import {
   generateRoomId,
 } from './utils/roomUrl';
 import type { GameMode, AIDifficulty, PieceColor, SquareCoord } from './types/game';
+import type { FriendUser } from './types/friends';
 
 function ChaturangaApp() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [showEvalBar, setShowEvalBar] = useState(true);
   const [shareToast, setShareToast] = useState<string | null>(null);
 
   const { user, isAuthenticated, isLoading, promptGoogleSignIn } = useAuth();
+  const friends = useFriends();
+
+  const [, setCurrentPath] = useState<string>(() => window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (path: string) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setCurrentPath(path);
+  };
+
+  // Route protection / Onboarding redirection
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (isAuthenticated && user && !user.onboarded) {
+      if (window.location.pathname !== '/onboard') {
+        navigate('/onboard');
+      }
+    } else if (isAuthenticated && user?.onboarded) {
+      if (window.location.pathname === '/onboard') {
+        navigate('/');
+      }
+    } else if (!isAuthenticated) {
+      if (window.location.pathname === '/onboard') {
+        navigate('/');
+      }
+    }
+  }, [isAuthenticated, user, isLoading]);
 
   const {
     board,
@@ -158,6 +198,23 @@ function ChaturangaApp() {
     }
   };
 
+  // Challenge a friend directly
+  const handleChallengeFriend = (friend: FriendUser) => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    const roomId = `match-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    handleSelectOnline(roomId, user?.name || 'Warrior');
+    const shareUrl = getGameShareUrl(roomId);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setShareToast(`Challenged ${friend.name}! Game link copied to clipboard.`);
+        setTimeout(() => setShareToast(null), 3000);
+      });
+    }
+  };
+
   // Guarded board interaction handlers
   const handleBoardSquareClick = (coord: SquareCoord) => {
     if (!isAuthenticated) {
@@ -181,7 +238,7 @@ function ChaturangaApp() {
       return;
     }
     const playerId = user?.id || 'player-' + Math.random().toString(36).substring(2, 8);
-    const playerName = user?.name || onlinePlayerName || 'Warrior';
+    const playerName = user?.username || user?.name || onlinePlayerName || 'Warrior';
     socket.findMatch(playerId, playerName);
   };
 
@@ -231,6 +288,21 @@ function ChaturangaApp() {
       ? socket.opponentName || 'Awaiting Opponent...'
       : 'Empty Chair';
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full bg-[#0d0c0a] flex items-center justify-center text-[#d4af37]">
+        <div className="flex flex-col items-center gap-3">
+          <span className="text-3xl animate-bounce">👑</span>
+          <span className="text-xs font-mono tracking-widest uppercase text-[#8a857d]">Entering Realm...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated && user && !user.onboarded) {
+    return <OnboardingPage onCompleted={() => navigate('/')} />;
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#161512] text-[#e3ded7] font-sans">
       {/* Left Navigation Sidebar */}
@@ -238,6 +310,8 @@ function ChaturangaApp() {
         currentMode={mode}
         onSelectMode={handleSelectMode}
         onOpenRules={() => setIsRulesOpen(true)}
+        onOpenFriends={() => setIsFriendsOpen(true)}
+        incomingRequestsCount={friends.incomingCount}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onFindMatch={handleFindMatch}
@@ -251,6 +325,8 @@ function ChaturangaApp() {
           isMuted={isMuted}
           onToggleMute={toggleMute}
           onOpenSettings={() => setIsRulesOpen(true)}
+          onOpenFriends={() => setIsFriendsOpen(true)}
+          friendsCount={friends.friendsCount}
         />
 
         {/* Center Battle Field & Control Panel */}
@@ -309,6 +385,27 @@ function ChaturangaApp() {
               capturedPieces={playerColor === 'white' ? capturedBlack : capturedWhite}
               materialAdvantage={playerColor === 'white' ? materialAdvantageBlack : materialAdvantageWhite}
               isActiveTurn={turn !== playerColor}
+              onAddFriend={
+                mode === 'online' && socket.opponentId && socket.opponentId !== user?.id
+                  ? async () => {
+                      const res = await friends.sendRequest(socket.opponentId!);
+                      if (res.success) {
+                        setShareToast(`Alliance request sent to ${opponentName}!`);
+                      } else {
+                        setShareToast(res.error || 'Failed to send request');
+                      }
+                    }
+                  : undefined
+              }
+              friendshipStatus={
+                mode === 'online' && socket.opponentId
+                  ? friends.isFriend(socket.opponentId)
+                    ? 'friend'
+                    : friends.hasPendingRequest(socket.opponentId)
+                    ? 'pending_sent'
+                    : 'none'
+                  : undefined
+              }
             />
 
             {/* The 8x8 Ashtāpada Board matching reference */}
@@ -367,11 +464,12 @@ function ChaturangaApp() {
             <PlayerCard
               name={
                 user
-                  ? user.name
+                  ? user.username || user.name
                   : mode === 'online'
                   ? onlinePlayerName || 'You'
                   : 'Sign in to Play'
               }
+              username={user?.username}
               rating={user ? user.rating : undefined}
               avatarUrl={user?.picture}
               avatarIcon={!user ? '👑' : undefined}
@@ -414,6 +512,11 @@ function ChaturangaApp() {
 
       {/* Modals */}
       <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
+      <FriendsModal
+        isOpen={isFriendsOpen}
+        onClose={() => setIsFriendsOpen(false)}
+        onChallengeFriend={handleChallengeFriend}
+      />
       <LobbyModal
         isOpen={isLobbyOpen}
         currentMode={mode}
@@ -428,7 +531,7 @@ function ChaturangaApp() {
       <MatchmakingModal
         isOpen={socket.isSearching}
         onCancel={socket.cancelFindMatch}
-        playerName={user?.name || onlinePlayerName || 'Warrior'}
+        playerName={user?.username || user?.name || onlinePlayerName || 'Warrior'}
         rating={user?.rating}
         picture={user?.picture}
       />
