@@ -20,6 +20,7 @@ import {
 import { getBestMove } from '../engine/ai';
 import { useAudio } from './useAudio';
 import { useChaturangaSocket } from './useChaturangaSocket';
+import { updateGameRoomUrl } from '../utils/roomUrl';
 
 interface BoardSnapshot {
   board: (Piece | null)[][];
@@ -66,6 +67,12 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
 
   const inCheck = status.type === 'active' ? (isKingInCheck(board, turn) ? turn : null) : null;
 
+  const playerColorRef = useRef(playerColor);
+  playerColorRef.current = playerColor;
+
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
   // Remote Move Handler for WebSockets
   const handleRemoteMove = useCallback(
     ({ from, to }: { from: SquareCoord; to: SquareCoord }) => {
@@ -108,11 +115,55 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     [playCapture, playMove, playVictory, playCheck]
   );
 
+  // Restart / Reset game
+  const resetGame = useCallback(() => {
+    setBoard(createInitialBoard());
+    setTurn('white');
+    setStatus({ type: 'active' });
+    setMoveHistory([]);
+    setCapturedWhite([]);
+    setCapturedBlack([]);
+    setLastMove(null);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    historyStack.current = [];
+  }, []);
+
+  const handleMatchFound = useCallback(
+    (newRoomId: string, color: 'white' | 'black') => {
+      setMode('online');
+      setOnlineRoomId(newRoomId);
+      setPlayerColor(color);
+      updateGameRoomUrl(newRoomId);
+      resetGame();
+    },
+    [resetGame]
+  );
+
+  // Remote Resignation Handler for WebSockets
+  const handleRemoteResign = useCallback(
+    ({ color, winner }: { color: 'white' | 'black'; winner: 'white' | 'black' }) => {
+      if (statusRef.current.type === 'resignation') {
+        return; // Already processed locally by the resigning player
+      }
+      setStatus({ type: 'resignation', winner });
+      playVictory();
+
+      // If the opponent was the one who resigned, celebrate our victory!
+      if (color !== playerColorRef.current) {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      }
+    },
+    [playVictory]
+  );
+
   // WebSocket connection (only connects when room exists AND player is authenticated)
   const socket = useChaturangaSocket({
     roomId: isAuthenticated ? onlineRoomId : null,
     playerName: onlinePlayerName,
     onRemoteMove: handleRemoteMove,
+    onMatchFound: handleMatchFound,
+    onRemoteResign: handleRemoteResign,
   });
 
   // Synchronize board perspective and player card with assigned color in online multiplayer
@@ -262,20 +313,6 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     }
   }, [isAuthenticated, mode, status, turn, playerColor, board, aiDifficulty, performMove]);
 
-  // Restart / Reset game
-  const resetGame = useCallback(() => {
-    setBoard(createInitialBoard());
-    setTurn('white');
-    setStatus({ type: 'active' });
-    setMoveHistory([]);
-    setCapturedWhite([]);
-    setCapturedBlack([]);
-    setLastMove(null);
-    setSelectedSquare(null);
-    setLegalMoves([]);
-    historyStack.current = [];
-  }, []);
-
   // Undo move
   const undoMove = useCallback(() => {
     if (historyStack.current.length === 0) return;
@@ -301,12 +338,21 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     }
   }, [mode]);
 
-  const resignGame = useCallback((resigningColor?: PieceColor) => {
-    const loser = resigningColor || playerColor;
-    const winner: PieceColor = loser === 'white' ? 'black' : 'white';
-    setStatus({ type: 'resignation', winner });
-    playVictory();
-  }, [playerColor, playVictory]);
+  const resignGame = useCallback(
+    (resigningColor?: PieceColor) => {
+      if (status.type !== 'active') return;
+
+      const loser = resigningColor || playerColor;
+      const winner: PieceColor = loser === 'white' ? 'black' : 'white';
+      setStatus({ type: 'resignation', winner });
+      playVictory();
+
+      if (mode === 'online') {
+        socket.sendResign(loser);
+      }
+    },
+    [status.type, playerColor, playVictory, mode, socket]
+  );
 
   const flipBoard = useCallback(() => {
     setBoardFlipped(prev => !prev);

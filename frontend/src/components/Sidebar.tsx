@@ -19,6 +19,7 @@ interface SidebarProps {
   onOpenRules: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  onFindMatch?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenRules,
   isOpenMobile,
   onCloseMobile,
+  onFindMatch,
 }) => {
   const { user, isAuthenticated, logout, promptGoogleSignIn } = useAuth();
 
@@ -65,6 +67,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Core Game Modes */}
           <nav className="space-y-1">
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  promptGoogleSignIn();
+                  return;
+                }
+                onFindMatch?.();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left bg-gradient-to-r from-[#2a2418] to-[#1e1c18] border border-[#d4af37]/30 text-[#fcd34d] hover:border-[#d4af37]/60 hover:text-[#fef08a] shadow-sm mb-1 cursor-pointer"
+            >
+              <span className="text-sm">⚡</span>
+              <span className="font-semibold text-xs tracking-wide">Quick Match</span>
+            </button>
+
             <button
               onClick={() => handleModeClick('pass_and_play')}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'pass_and_play'

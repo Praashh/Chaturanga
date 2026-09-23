@@ -13,6 +13,7 @@ interface LobbyModalProps {
   onSelectLocal: () => void;
   onSelectAI: (difficulty: AIDifficulty, playerColor: PieceColor) => void;
   onSelectOnline: (roomId: string, playerName: string) => void;
+  onFindMatch?: () => void;
 }
 
 export const LobbyModal: React.FC<LobbyModalProps> = ({
@@ -24,6 +25,7 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
   onSelectLocal,
   onSelectAI,
   onSelectOnline,
+  onFindMatch,
 }) => {
   const { user, isAuthenticated, promptGoogleSignIn } = useAuth();
   const [selectedTab, setSelectedTab] = useState<GameMode>(currentMode);
@@ -37,6 +39,18 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
       setPlayerName(user.name);
     }
   }, [user?.name]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedTab(currentMode);
+    }
+  }, [isOpen, currentMode]);
+
+  useEffect(() => {
+    if (initialRoomId) {
+      setRoomId(initialRoomId);
+    }
+  }, [initialRoomId]);
 
   if (!isOpen) return null;
 
@@ -194,57 +208,102 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
           )}
 
           {selectedTab === 'online' && (
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] text-[#8a857d] font-medium">
-                    Room Code
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setRoomId(generateRoomId())}
-                    className="flex items-center gap-1 text-[10px] text-[#d4af37] hover:text-[#fcd34d] transition-colors"
-                    title="Generate unique room code"
-                  >
-                    <Shuffle className="w-3 h-3" />
-                    <span>Roll Random</span>
-                  </button>
+            <div className="space-y-3.5">
+              {/* Quick Matchmaking Section */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-b from-[#25221d] to-[#1e1c18] border border-[#3d372d] flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚡</span>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">Quick Match</h4>
+                      <p className="text-[10px] text-[#8a857d]">Automatically pair with any waiting player</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                    1v1 Online
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  value={roomId}
-                  onChange={e => setRoomId(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2c2823] text-white font-mono text-xs focus:outline-none focus:border-[#1d4ed8]"
-                  placeholder="e.g. royal-chaturanga"
-                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      promptGoogleSignIn();
+                      return;
+                    }
+                    if (onFindMatch) {
+                      onClose();
+                      onFindMatch();
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-lg bg-[#d4af37] hover:bg-[#fcd34d] text-zinc-950 font-bold text-xs transition-all duration-150 shadow-md hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>⚡</span>
+                  <span>Find Match Now</span>
+                </button>
               </div>
 
-              <div>
-                <label className="block text-[11px] text-[#8a857d] mb-1 font-medium">
-                  Your Display Name
-                </label>
-                <input
-                  type="text"
-                  value={playerName}
-                  onChange={e => setPlayerName(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2c2823] text-white text-xs focus:outline-none focus:border-[#1d4ed8]"
-                  placeholder="e.g. jaunty-player"
-                />
+              {/* Divider */}
+              <div className="flex items-center gap-3 my-0.5">
+                <div className="h-px bg-[#262421] flex-1" />
+                <span className="text-[10px] font-semibold text-[#635f58] tracking-wider uppercase">or custom room</span>
+                <div className="h-px bg-[#262421] flex-1" />
               </div>
 
-              <button
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    promptGoogleSignIn();
-                    return;
-                  }
-                  onSelectOnline(roomId, playerName);
-                  onClose();
-                }}
-                className="w-full py-2.5 rounded-lg bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-semibold transition-colors shadow mt-2"
-              >
-                Connect to Room
-              </button>
+              {/* Custom Private Room Section */}
+              <div className="space-y-2.5">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] text-[#8a857d] font-medium">
+                      Room Code
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setRoomId(generateRoomId())}
+                      className="flex items-center gap-1 text-[10px] text-[#d4af37] hover:text-[#fcd34d] transition-colors"
+                      title="Generate unique room code"
+                    >
+                      <Shuffle className="w-3 h-3" />
+                      <span>Roll Random</span>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={roomId}
+                    onChange={e => setRoomId(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2c2823] text-white font-mono text-xs focus:outline-none focus:border-[#1d4ed8]"
+                    placeholder="e.g. royal-chaturanga"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[#8a857d] mb-1 font-medium">
+                    Your Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={playerName}
+                    onChange={e => setPlayerName(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2c2823] text-white text-xs focus:outline-none focus:border-[#1d4ed8]"
+                    placeholder="e.g. jaunty-player"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      promptGoogleSignIn();
+                      return;
+                    }
+                    onSelectOnline(roomId, playerName);
+                    onClose();
+                  }}
+                  className="w-full py-2.5 rounded-lg bg-[#262421] hover:bg-[#322e29] border border-[#3a352f] text-white font-semibold transition-colors shadow mt-1 text-xs cursor-pointer"
+                >
+                  Join Private Room
+                </button>
+              </div>
             </div>
           )}
         </div>

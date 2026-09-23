@@ -6,6 +6,7 @@ import { PlayerCard } from './components/PlayerCard';
 import { GamePanel } from './components/GamePanel';
 import { RulesModal } from './components/RulesModal';
 import { LobbyModal } from './components/LobbyModal';
+import { MatchmakingModal } from './components/MatchmakingModal';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useChaturangaGame } from './hooks/useChaturangaGame';
@@ -174,9 +175,23 @@ function ChaturangaApp() {
     handleMove(from, to);
   };
 
+  const handleFindMatch = () => {
+    if (!isAuthenticated) {
+      promptGoogleSignIn();
+      return;
+    }
+    const playerId = user?.id || 'player-' + Math.random().toString(36).substring(2, 8);
+    const playerName = user?.name || onlinePlayerName || 'Warrior';
+    socket.findMatch(playerId, playerName);
+  };
+
   const handleNewGame = () => {
     if (!isAuthenticated) {
       promptGoogleSignIn();
+      return;
+    }
+    if (mode === 'online') {
+      setIsLobbyOpen(true);
       return;
     }
     resetGame();
@@ -225,6 +240,7 @@ function ChaturangaApp() {
         onOpenRules={() => setIsRulesOpen(true)}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onFindMatch={handleFindMatch}
       />
 
       {/* Main Content Area */}
@@ -407,6 +423,14 @@ function ChaturangaApp() {
         onSelectLocal={handleSelectLocal}
         onSelectAI={handleSelectAI}
         onSelectOnline={handleSelectOnline}
+        onFindMatch={handleFindMatch}
+      />
+      <MatchmakingModal
+        isOpen={socket.isSearching}
+        onCancel={socket.cancelFindMatch}
+        playerName={user?.name || onlinePlayerName || 'Warrior'}
+        rating={user?.rating}
+        picture={user?.picture}
       />
     </div>
   );

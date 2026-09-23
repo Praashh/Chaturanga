@@ -8,6 +8,8 @@ interface UseChaturangaSocketProps {
   playerName: string;
   onRemoteMove?: (move: { from: SquareCoord; to: SquareCoord }) => void;
   onRemoteChat?: (chat: { sender: string; text: string }) => void;
+  onMatchFound?: (roomId: string, color: 'white' | 'black', opponent: string) => void;
+  onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black' }) => void;
 }
 
 export function useChaturangaSocket({
@@ -15,39 +17,41 @@ export function useChaturangaSocket({
   playerName,
   onRemoteMove,
   onRemoteChat,
+  onMatchFound,
+  onRemoteResign,
 }: UseChaturangaSocketProps) {
   const [status, setStatus] = useState<SocketStatus>('disconnected');
   const [assignedColor, setAssignedColor] = useState<'white' | 'black' | null>(null);
   const [opponentName, setOpponentName] = useState<string | null>(null);
   const [chatLog, setChatLog] = useState<{ sender: string; text: string; time: string }[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
 
   const socketRef = useRef<WebSocket | null>(null);
+  const pendingActions = useRef<((ws: WebSocket) => void)[]>([]);
+  const isSearchingRef = useRef(isSearching);
+  isSearchingRef.current = isSearching;
 
-  // Keep references to latest callbacks so connect() has a stable identity and doesn't reconnect
+  // Keep references to latest callbacks so functions have stable identity
   const onRemoteMoveRef = useRef(onRemoteMove);
   onRemoteMoveRef.current = onRemoteMove;
 
   const onRemoteChatRef = useRef(onRemoteChat);
   onRemoteChatRef.current = onRemoteChat;
 
+  const onMatchFoundRef = useRef(onMatchFound);
+  onMatchFoundRef.current = onMatchFound;
+
+  const onRemoteResignRef = useRef(onRemoteResign);
+  onRemoteResignRef.current = onRemoteResign;
+
   const playerNameRef = useRef(playerName);
   playerNameRef.current = playerName;
 
-  const connect = useCallback(() => {
-    if (!roomId) return;
+  const roomIdRef = useRef(roomId);
+  roomIdRef.current = roomId;
 
-    // Clean up any stale connection
-    if (socketRef.current) {
-      try {
-        socketRef.current.close();
-      } catch {
-        // ignore
-      }
-      socketRef.current = null;
-    }
-
-    setStatus('connecting');
-
+  // Helper to compute correct WS URL
+  const getWsUrl = useCallback(() => {
     const envWsUrl = import.meta.env.VITE_WS_URL;
     let wsUrl = envWsUrl && typeof envWsUrl === 'string' && envWsUrl.trim() !== '' ? envWsUrl.trim() : '';
 
@@ -59,6 +63,46 @@ export function useChaturangaSocket({
         wsUrl = 'ws://localhost:3001/ws';
       }
     }
+    return wsUrl;
+  }, []);
+
+  const disconnect = useCallback(() => {
+    pendingActions.current = [];
+    if (socketRef.current) {
+      const ws = socketRef.current;
+      socketRef.current = null;
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+          // Defer closing until open to avoid browser "closed before connection established" warning
+          ws.onopen = () => {
+            try {
+              ws.close();
+            } catch {}
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    setStatus('disconnected');
+    setAssignedColor(null);
+    setOpponentName(null);
+  }, []);
+
+  const initSocket = useCallback(() => {
+    // If socket is already open or connecting, reuse it
+    if (
+      socketRef.current &&
+      (socketRef.current.readyState === WebSocket.OPEN ||
+        socketRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      return socketRef.current;
+    }
+
+    setStatus('connecting');
+    const wsUrl = getWsUrl();
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -66,23 +110,48 @@ export function useChaturangaSocket({
 
       ws.onopen = () => {
         setStatus('connected');
-        const joinMsg = {
-          type: 'join_room',
-          payload: {
-            room_id: roomId,
-            player_name: playerNameRef.current || 'Warrior',
-          },
-        };
-        ws.send(JSON.stringify(joinMsg));
+
+        // Flush all pending actions first (e.g. find_match)
+        while (pendingActions.current.length > 0) {
+          const action = pendingActions.current.shift();
+          if (action) {
+            try {
+              action(ws);
+            } catch (err) {
+              console.error('Error executing queued WebSocket action:', err);
+            }
+          }
+        }
+
+        // If we have a roomId and are not currently searching for a match, join the room
+        if (roomIdRef.current && !isSearchingRef.current) {
+          const joinMsg = {
+            type: 'join_room',
+            payload: {
+              room_id: roomIdRef.current,
+              player_name: playerNameRef.current || 'Warrior',
+            },
+          };
+          ws.send(JSON.stringify(joinMsg));
+        }
       };
 
       ws.onmessage = event => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'room_joined') {
+            isSearchingRef.current = false;
+            setIsSearching(false);
             setAssignedColor(data.payload.color);
             if (data.payload.opponent) {
               setOpponentName(data.payload.opponent);
+            }
+            if (onMatchFoundRef.current) {
+              onMatchFoundRef.current(
+                data.payload.room_id,
+                data.payload.color,
+                data.payload.opponent || 'Opponent'
+              );
             }
           } else if (data.type === 'move_made') {
             const { from_col, from_row, to_col, to_row } = data.payload;
@@ -102,6 +171,18 @@ export function useChaturangaSocket({
             if (onRemoteChatRef.current) {
               onRemoteChatRef.current(data.payload);
             }
+          } else if (data.type === 'player_resigned') {
+            const resigningColor = data.payload.color;
+            const winningColor = data.payload.winner;
+            const systemChat = {
+              sender: 'System',
+              text: `${resigningColor === 'white' ? 'White' : 'Black'} resigned. ${winningColor === 'white' ? 'White' : 'Black'} wins!`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            setChatLog(prev => [...prev, systemChat]);
+            if (onRemoteResignRef.current) {
+              onRemoteResignRef.current(data.payload);
+            }
           }
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err);
@@ -115,43 +196,66 @@ export function useChaturangaSocket({
       ws.onclose = () => {
         setStatus('disconnected');
       };
+
+      return ws;
     } catch (err) {
       console.error('WebSocket connection failed:', err);
       setStatus('error');
+      return null;
     }
-  }, [roomId]);
+  }, [getWsUrl]);
+
+  // Safe sender helper that queues actions if connection is still establishing
+  const safeSend = useCallback(
+    (action: (ws: WebSocket) => void) => {
+      const ws = socketRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        action(ws);
+      } else {
+        pendingActions.current.push(action);
+        if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          initSocket();
+        }
+      }
+    },
+    [initSocket]
+  );
 
   const sendMove = useCallback(
     (from: SquareCoord, to: SquareCoord) => {
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && roomId) {
-        const moveMsg = {
-          type: 'make_move',
-          payload: {
-            room_id: roomId,
-            from_col: from.col,
-            from_row: from.row,
-            to_col: to.col,
-            to_row: to.row,
-            promotion: null,
-          },
-        };
-        socketRef.current.send(JSON.stringify(moveMsg));
+      if (roomId) {
+        safeSend(ws => {
+          const moveMsg = {
+            type: 'make_move',
+            payload: {
+              room_id: roomId,
+              from_col: from.col,
+              from_row: from.row,
+              to_col: to.col,
+              to_row: to.row,
+              promotion: null,
+            },
+          };
+          ws.send(JSON.stringify(moveMsg));
+        });
       }
     },
-    [roomId]
+    [roomId, safeSend]
   );
 
   const sendChat = useCallback(
     (text: string) => {
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && roomId) {
-        const chatMsg = {
-          type: 'chat',
-          payload: {
-            room_id: roomId,
-            text,
-          },
-        };
-        socketRef.current.send(JSON.stringify(chatMsg));
+      if (roomId) {
+        safeSend(ws => {
+          const chatMsg = {
+            type: 'chat',
+            payload: {
+              room_id: roomId,
+              text,
+            },
+          };
+          ws.send(JSON.stringify(chatMsg));
+        });
         setChatLog(prev => [
           ...prev,
           {
@@ -162,41 +266,98 @@ export function useChaturangaSocket({
         ]);
       }
     },
-    [roomId]
+    [roomId, safeSend]
   );
 
-  const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      try {
-        socketRef.current.close();
-      } catch {
-        // ignore
+  const sendResign = useCallback(
+    (color?: 'white' | 'black') => {
+      if (roomId) {
+        safeSend(ws => {
+          const resignMsg = {
+            type: 'resign',
+            payload: {
+              room_id: roomId,
+              color,
+            },
+          };
+          ws.send(JSON.stringify(resignMsg));
+        });
       }
-      socketRef.current = null;
-    }
-    setStatus('disconnected');
-    setAssignedColor(null);
-    setOpponentName(null);
-  }, []);
+    },
+    [roomId, safeSend]
+  );
 
-  useEffect(() => {
-    if (roomId) {
-      connect();
-    } else {
+  const findMatch = useCallback(
+    (playerId: string, name: string) => {
+      isSearchingRef.current = true;
+      setIsSearching(true);
+      playerNameRef.current = name;
+
+      safeSend(ws => {
+        ws.send(
+          JSON.stringify({
+            type: 'find_match',
+            payload: {
+              player_id: playerId,
+              player_name: name,
+            },
+          })
+        );
+      });
+    },
+    [safeSend]
+  );
+
+  const cancelFindMatch = useCallback(() => {
+    isSearchingRef.current = false;
+    setIsSearching(false);
+    pendingActions.current = [];
+
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: 'cancel_find_match',
+        })
+      );
+    }
+    if (!roomIdRef.current) {
       disconnect();
     }
+  }, [disconnect]);
+
+  // Keep isSearchingRef synchronized
+  useEffect(() => {
+    isSearchingRef.current = isSearching;
+  }, [isSearching]);
+
+  // Handle roomId updates without premature tear-down
+  useEffect(() => {
+    roomIdRef.current = roomId;
+    if (roomId) {
+      initSocket();
+    } else if (!isSearchingRef.current) {
+      disconnect();
+    }
+  }, [roomId, initSocket, disconnect]);
+
+  // Cleanup only on unmount
+  useEffect(() => {
     return () => {
       disconnect();
     };
-  }, [roomId, connect, disconnect]);
+  }, [disconnect]);
 
   return {
     status,
     assignedColor,
     opponentName,
     chatLog,
+    isSearching,
+    findMatch,
+    cancelFindMatch,
     sendMove,
     sendChat,
+    sendResign,
     disconnect,
   };
 }
