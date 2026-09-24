@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import type {
   Piece,
   PieceColor,
@@ -63,7 +62,18 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
   const historyStack = useRef<BoardSnapshot[]>([]);
 
   // Sound Engine
-  const { isMuted, toggleMute, playMove, playCapture, playCheck, playVictory } = useAudio();
+  const {
+    isMuted,
+    toggleMute,
+    playMove,
+    playOpponentMove,
+    playCapture,
+    playCheck,
+    playGameStart,
+    playGameEnd,
+    playIllegal,
+    playNotify,
+  } = useAudio();
 
   const inCheck = status.type === 'active' ? (isKingInCheck(board, turn) ? turn : null) : null;
 
@@ -92,7 +102,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
           }
           playCapture();
         } else {
-          playMove();
+          playOpponentMove();
         }
 
         setTurn(nextTurn);
@@ -103,8 +113,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         setLegalMoves([]);
 
         if (newStatus.type !== 'active') {
-          playVictory();
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+          playGameEnd();
         } else if (isKingInCheck(newBoard, nextTurn)) {
           playCheck();
         }
@@ -112,7 +121,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         return newBoard;
       });
     },
-    [playCapture, playMove, playVictory, playCheck]
+    [playCapture, playOpponentMove, playGameEnd, playCheck]
   );
 
   // Restart / Reset game
@@ -136,25 +145,21 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       setPlayerColor(color);
       updateGameRoomUrl(newRoomId);
       resetGame();
+      playGameStart();
     },
-    [resetGame]
+    [resetGame, playGameStart]
   );
 
   // Remote Resignation Handler for WebSockets
   const handleRemoteResign = useCallback(
-    ({ color, winner }: { color: 'white' | 'black'; winner: 'white' | 'black' }) => {
+    ({ winner }: { color: 'white' | 'black'; winner: 'white' | 'black' }) => {
       if (statusRef.current.type === 'resignation') {
         return; // Already processed locally by the resigning player
       }
       setStatus({ type: 'resignation', winner });
-      playVictory();
-
-      // If the opponent was the one who resigned, celebrate our victory!
-      if (color !== playerColorRef.current) {
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-      }
+      playGameEnd();
     },
-    [playVictory]
+    [playGameEnd]
   );
 
   // WebSocket connection (only connects when room exists AND player is authenticated)
@@ -194,6 +199,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       const newStatus = evaluateGameStatus(newBoard, nextTurn);
 
       // Handle capture audio & trays
+      const isOpponent = mode === 'vs_ai' && turn !== playerColor;
       if (moveRecord.captured) {
         if (turn === 'white') {
           setCapturedWhite(prev => [...prev, moveRecord.captured!]);
@@ -201,6 +207,8 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
           setCapturedBlack(prev => [...prev, moveRecord.captured!]);
         }
         playCapture();
+      } else if (isOpponent) {
+        playOpponentMove();
       } else {
         playMove();
       }
@@ -213,10 +221,9 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       setSelectedSquare(null);
       setLegalMoves([]);
 
-      // Check / Victory triggers
+      // Check / Game Over triggers (No confetti)
       if (newStatus.type !== 'active') {
-        playVictory();
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        playGameEnd();
       } else if (isKingInCheck(newBoard, nextTurn)) {
         playCheck();
       }
@@ -226,7 +233,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         socket.sendMove(from, to);
       }
     },
-    [isAuthenticated, board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playMove, playVictory, playCheck, mode, socket]
+    [isAuthenticated, board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playMove, playOpponentMove, playGameEnd, playCheck, mode, playerColor, socket]
   );
 
   // Handle Square Selection and Clicking
@@ -345,13 +352,13 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       const loser = resigningColor || playerColor;
       const winner: PieceColor = loser === 'white' ? 'black' : 'white';
       setStatus({ type: 'resignation', winner });
-      playVictory();
+      playGameEnd();
 
       if (mode === 'online') {
         socket.sendResign(loser);
       }
     },
-    [status.type, playerColor, playVictory, mode, socket]
+    [status.type, playerColor, playGameEnd, mode, socket]
   );
 
   const flipBoard = useCallback(() => {
@@ -390,6 +397,10 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     undoMove,
     flipBoard,
     toggleMute,
+    playGameStart,
+    playGameEnd,
+    playIllegal,
+    playNotify,
   };
 }
 

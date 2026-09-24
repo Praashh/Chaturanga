@@ -7,6 +7,8 @@ export interface JoinRoomPayload {
 export interface FindMatchPayload {
   player_id: string;
   player_name: string;
+  rating?: number;
+  picture?: string | null;
   // timeControl: number
 }
 export interface MakeMovePayload {
@@ -42,6 +44,8 @@ export interface RoomJoinedPayload {
   color: 'white' | 'black';
   opponent?: string | null;
   opponent_id?: string | null;
+  opponent_rating?: number;
+  opponent_picture?: string | null;
 }
 
 export interface MoveMadePayload {

@@ -3,6 +3,15 @@ import type { SquareCoord } from '../types/game';
 
 export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
+export interface MatchedOpponentInfo {
+  roomId: string;
+  color: 'white' | 'black';
+  opponentName: string;
+  opponentId?: string | null;
+  opponentRating?: number;
+  opponentPicture?: string | null;
+}
+
 interface UseChaturangaSocketProps {
   roomId: string | null;
   playerName: string;
@@ -12,7 +21,9 @@ interface UseChaturangaSocketProps {
     roomId: string,
     color: 'white' | 'black',
     opponent: string,
-    opponentId?: string | null
+    opponentId?: string | null,
+    opponentRating?: number,
+    opponentPicture?: string | null
   ) => void;
   onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black' }) => void;
 }
@@ -31,6 +42,7 @@ export function useChaturangaSocket({
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [chatLog, setChatLog] = useState<{ sender: string; text: string; time: string }[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [matchedOpponent, setMatchedOpponent] = useState<MatchedOpponentInfo | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const pendingActions = useRef<((ws: WebSocket) => void)[]>([]);
@@ -156,12 +168,25 @@ export function useChaturangaSocket({
             if (data.payload.opponent_id) {
               setOpponentId(data.payload.opponent_id);
             }
+
+            const matchInfo: MatchedOpponentInfo = {
+              roomId: data.payload.room_id,
+              color: data.payload.color,
+              opponentName: data.payload.opponent || 'Opponent',
+              opponentId: data.payload.opponent_id || null,
+              opponentRating: data.payload.opponent_rating || 1500,
+              opponentPicture: data.payload.opponent_picture || null,
+            };
+            setMatchedOpponent(matchInfo);
+
             if (onMatchFoundRef.current) {
               onMatchFoundRef.current(
                 data.payload.room_id,
                 data.payload.color,
                 data.payload.opponent || 'Opponent',
-                data.payload.opponent_id || null
+                data.payload.opponent_id || null,
+                data.payload.opponent_rating,
+                data.payload.opponent_picture
               );
             }
           } else if (data.type === 'move_made') {
@@ -299,9 +324,10 @@ export function useChaturangaSocket({
   );
 
   const findMatch = useCallback(
-    (playerId: string, name: string) => {
+    (playerId: string, name: string, rating?: number, picture?: string | null) => {
       isSearchingRef.current = true;
       setIsSearching(true);
+      setMatchedOpponent(null);
       playerNameRef.current = name;
 
       safeSend(ws => {
@@ -311,6 +337,8 @@ export function useChaturangaSocket({
             payload: {
               player_id: playerId,
               player_name: name,
+              rating: rating ?? 1500,
+              picture: picture ?? null,
             },
           })
         );
@@ -322,6 +350,7 @@ export function useChaturangaSocket({
   const cancelFindMatch = useCallback(() => {
     isSearchingRef.current = false;
     setIsSearching(false);
+    setMatchedOpponent(null);
     pendingActions.current = [];
 
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -335,6 +364,10 @@ export function useChaturangaSocket({
       disconnect();
     }
   }, [disconnect]);
+
+  const clearMatchedOpponent = useCallback(() => {
+    setMatchedOpponent(null);
+  }, []);
 
   // Keep isSearchingRef synchronized
   useEffect(() => {
@@ -365,6 +398,8 @@ export function useChaturangaSocket({
     opponentId,
     chatLog,
     isSearching,
+    matchedOpponent,
+    clearMatchedOpponent,
     findMatch,
     cancelFindMatch,
     sendMove,

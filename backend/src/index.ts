@@ -25,6 +25,8 @@ const rooms = new Map<string, Room>();
 interface QueuedPlayer {
   playerId: string;
   playerName: string;
+  rating?: number;
+  picture?: string | null;
   ws: any; // Elysia WebSocket
 }
 
@@ -128,7 +130,7 @@ const app = new Elysia()
           }
 
           case 'find_match': {
-            const { player_id, player_name } = msg.payload;
+            const { player_id, player_name, rating, picture } = msg.payload;
             console.log("USER CLICK ON FIND MATCH", matchmakingQueue);
 
             // Prevent duplicate entries if clicked multiple times
@@ -144,6 +146,8 @@ const app = new Elysia()
                 matchmakingQueue.push({
                   playerId: player_id,
                   playerName: player_name,
+                  rating: rating ?? 1500,
+                  picture: picture ?? null,
                   ws,
                 });
                 break;
@@ -171,6 +175,8 @@ const app = new Elysia()
                     color: 'white',
                     opponent: player_name,
                     opponent_id: player_id,
+                    opponent_rating: rating ?? 1500,
+                    opponent_picture: picture ?? null,
                   },
                 })
               );
@@ -184,6 +190,8 @@ const app = new Elysia()
                     color: 'black',
                     opponent: opponent.playerName,
                     opponent_id: opponent.playerId,
+                    opponent_rating: opponent.rating ?? 1500,
+                    opponent_picture: opponent.picture ?? null,
                   },
                 })
               );
@@ -195,6 +203,8 @@ const app = new Elysia()
               matchmakingQueue.push({
                 playerId: player_id,
                 playerName: player_name,
+                rating: rating ?? 1500,
+                picture: picture ?? null,
                 ws,
               });
 

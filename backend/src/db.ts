@@ -35,9 +35,6 @@ export interface FriendProfile {
   username: string;
   picture: string | null;
   rating: number;
-  gamesPlayed: number;
-  gamesWon: number;
-  email?: string;
   friendshipId?: string;
 }
 
@@ -249,11 +246,8 @@ export async function getFriends(userId: string): Promise<FriendProfile[]> {
             id: true,
             name: true,
             username: true,
-            email: true,
             picture: true,
             rating: true,
-            gamesPlayed: true,
-            gamesWon: true,
           },
         },
       },
@@ -281,11 +275,8 @@ export async function getFriendRequests(userId: string): Promise<{
       id: true,
       name: true,
       username: true,
-      email: true,
       picture: true,
       rating: true,
-      gamesPlayed: true,
-      gamesWon: true,
     };
 
     const [incoming, outgoing] = await Promise.all([

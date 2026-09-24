@@ -6,7 +6,6 @@ import { PlayerCard } from './components/PlayerCard';
 import { GamePanel } from './components/GamePanel';
 import { RulesModal } from './components/RulesModal';
 import { LobbyModal } from './components/LobbyModal';
-import { MatchmakingModal } from './components/MatchmakingModal';
 import { FriendsModal } from './components/FriendsModal';
 import { OnboardingPage } from './components/OnboardingPage';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
@@ -96,7 +95,35 @@ function ChaturangaApp() {
     resetGame,
     resignGame,
     toggleMute,
+    playGameStart,
   } = useChaturangaGame({ isAuthenticated });
+
+  // Matchmaking search timer & match found animation state
+  const [searchSeconds, setSearchSeconds] = useState<number>(0);
+  const [isMatchJustFound, setIsMatchJustFound] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!socket.isSearching) {
+      setSearchSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setSearchSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [socket.isSearching]);
+
+  // When match is found by socket, briefly highlight opponent card and play game start sound
+  useEffect(() => {
+    if (socket.matchedOpponent) {
+      setIsMatchJustFound(true);
+      playGameStart();
+      const timeout = setTimeout(() => {
+        setIsMatchJustFound(false);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [socket.matchedOpponent, playGameStart]);
 
   // Synchronize authenticated user's name with online player identity
   useEffect(() => {
@@ -239,7 +266,7 @@ function ChaturangaApp() {
     }
     const playerId = user?.id || 'player-' + Math.random().toString(36).substring(2, 8);
     const playerName = user?.username || user?.name || onlinePlayerName || 'Warrior';
-    socket.findMatch(playerId, playerName);
+    socket.findMatch(playerId, playerName, user?.rating ?? 1500, user?.picture ?? null);
   };
 
   const handleNewGame = () => {
@@ -378,13 +405,31 @@ function ChaturangaApp() {
               </div>
             )}
 
-            {/* Opponent Card (Top) */}
+            {/* Opponent Card (Top) - with Chess.com searching animation on profile and name+rating */}
             <PlayerCard
-              name={opponentName}
-              rating={mode === 'vs_ai' ? (aiDifficulty === 'novice' ? 1200 : aiDifficulty === 'warrior' ? 1500 : 1800) : undefined}
+              name={
+                socket.isSearching
+                  ? 'Searching for Opponent...'
+                  : opponentName
+              }
+              rating={
+                mode === 'vs_ai'
+                  ? aiDifficulty === 'novice'
+                    ? 1200
+                    : aiDifficulty === 'warrior'
+                    ? 1500
+                    : 1800
+                  : socket.matchedOpponent?.opponentRating ?? (mode === 'online' ? 1500 : undefined)
+              }
+              avatarUrl={socket.matchedOpponent?.opponentPicture}
               capturedPieces={playerColor === 'white' ? capturedBlack : capturedWhite}
               materialAdvantage={playerColor === 'white' ? materialAdvantageBlack : materialAdvantageWhite}
               isActiveTurn={turn !== playerColor}
+              isSearching={socket.isSearching}
+              searchDuration={searchSeconds}
+              targetRating={user?.rating ?? 1500}
+              onCancelSearch={socket.cancelFindMatch}
+              isMatchJustFound={isMatchJustFound}
               onAddFriend={
                 mode === 'online' && socket.opponentId && socket.opponentId !== user?.id
                   ? async () => {
@@ -497,6 +542,14 @@ function ChaturangaApp() {
               onResign={handleResign}
               roomId={onlineRoomId}
               onShare={handleShareGame}
+              isSearching={socket.isSearching}
+              searchDuration={searchSeconds}
+              targetRating={user?.rating ?? 1500}
+              onCancelSearch={socket.cancelFindMatch}
+              onPlayBot={() => {
+                socket.cancelFindMatch();
+                handleSelectAI('warrior', 'white');
+              }}
             />
           </div>
         </div>
@@ -527,13 +580,6 @@ function ChaturangaApp() {
         onSelectAI={handleSelectAI}
         onSelectOnline={handleSelectOnline}
         onFindMatch={handleFindMatch}
-      />
-      <MatchmakingModal
-        isOpen={socket.isSearching}
-        onCancel={socket.cancelFindMatch}
-        playerName={user?.username || user?.name || onlinePlayerName || 'Warrior'}
-        rating={user?.rating}
-        picture={user?.picture}
       />
     </div>
   );

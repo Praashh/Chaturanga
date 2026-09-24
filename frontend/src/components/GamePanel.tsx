@@ -11,6 +11,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Flag,
+  Swords,
+  Bot,
 } from 'lucide-react';
 import type { Move, GameStatus } from '../types/game';
 
@@ -25,6 +27,11 @@ interface GamePanelProps {
   onResign: () => void;
   roomId?: string | null;
   onShare?: () => void;
+  isSearching?: boolean;
+  searchDuration?: number;
+  targetRating?: number;
+  onCancelSearch?: () => void;
+  onPlayBot?: () => void;
 }
 
 export const GamePanel: React.FC<GamePanelProps> = ({
@@ -38,10 +45,25 @@ export const GamePanel: React.FC<GamePanelProps> = ({
   onResign,
   roomId,
   onShare,
+  isSearching = false,
+  searchDuration = 0,
+  targetRating = 1500,
+  onCancelSearch,
+  onPlayBot,
 }) => {
   const [isAnalyzeActive, setIsAnalyzeActive] = useState<boolean>(true);
   const [selectedMoveIndex, setSelectedMoveIndex] = useState<number | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const formatTime = (totalSec = 0) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const bracket = Math.min(300, 50 + Math.floor(searchDuration / 3) * 30);
+  const minRating = Math.max(100, targetRating - bracket);
+  const maxRating = targetRating + bracket;
 
   const handleShare = () => {
     if (onShare) {
@@ -170,125 +192,183 @@ export const GamePanel: React.FC<GamePanelProps> = ({
         </button>
       </div>
 
-      {/* Status Announcement Banner (as seen in screenshot: "Black wins by resignation") */}
-      <div
-        className={`w-full py-2 px-3 text-center text-xs font-semibold tracking-wide border-b border-[#262421] ${
-          isGameOver
-            ? 'bg-[#3b2b1a] text-[#fcd34d]'
-            : 'bg-[#201e1b] text-[#d4cfc7]'
-        }`}
-      >
-        {getStatusBannerText()}
-      </div>
-
-      {/* MOVES Header with Navigation Controls */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#262421] text-[#8a857d] font-semibold text-[11px]">
-        <span>MOVES</span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setSelectedMoveIndex(0)}
-            className="p-1 hover:bg-[#262421] hover:text-white rounded"
-            title="First Move"
-          >
-            <ChevronsLeft className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() =>
-              setSelectedMoveIndex(prev => Math.max(0, (prev ?? moves.length - 1) - 1))
-            }
-            className="p-1 hover:bg-[#262421] hover:text-white rounded"
-            title="Previous Move"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() =>
-              setSelectedMoveIndex(prev => Math.min(moves.length - 1, (prev ?? 0) + 1))
-            }
-            className="p-1 hover:bg-[#262421] hover:text-white rounded"
-            title="Next Move"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setSelectedMoveIndex(null)}
-            className="p-1 hover:bg-[#262421] hover:text-white rounded"
-            title="Latest Move"
-          >
-            <ChevronsRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Move Chronicle Table matching screenshot */}
-      <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 font-mono text-xs">
-        {pairedMoves.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-[#635f58] italic font-sans text-xs">
-            Awaiting first command...
+      {/* Matchmaking Queue Search State vs Game Moves Chronicle */}
+      {isSearching ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-4 text-center select-none">
+          <div className="relative w-16 h-16 flex items-center justify-center mb-3">
+            <div className="absolute inset-0 rounded-full border border-[#d4af37]/20 animate-ping duration-1000" />
+            <div className="absolute inset-2 rounded-full border border-[#d4af37]/40 animate-pulse" />
+            <div className="w-10 h-10 rounded-full bg-[#201d19] border border-[#d4af37]/60 flex items-center justify-center shadow-lg">
+              <Swords className="w-5 h-5 text-[#fcd34d] animate-pulse" />
+            </div>
           </div>
-        ) : (
-          pairedMoves.map(pair => {
-            const whiteMoveIndex = (pair.num - 1) * 2;
-            const blackMoveIndex = whiteMoveIndex + 1;
-            const isWhiteActive =
-              selectedMoveIndex === whiteMoveIndex ||
-              (selectedMoveIndex === null && moves.length - 1 === whiteMoveIndex);
-            const isBlackActive =
-              selectedMoveIndex === blackMoveIndex ||
-              (selectedMoveIndex === null && moves.length - 1 === blackMoveIndex);
 
-            return (
+          <h4 className="font-serif font-bold text-white text-sm tracking-wide">
+            Searching for Opponent...
+          </h4>
+          <p className="text-[11px] text-[#8a857d] mt-1 max-w-[200px]">
+            Looking for a worthy challenger of similar rating across the realm.
+          </p>
+
+          <div className="mt-3 px-3 py-1 rounded-full bg-[#221f1a] border border-[#363026] text-xs font-mono font-semibold text-[#fcd34d]">
+            ⏱ {formatTime(searchDuration)}
+          </div>
+
+          <div className="w-full mt-4 p-2.5 rounded-lg bg-[#201d19] border border-[#2e2922] text-[11px]">
+            <div className="flex items-center justify-between text-[#baa994] font-medium mb-1">
+              <span>Rating Window</span>
+              <span className="font-mono text-amber-300">{minRating} – {maxRating}</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-[#2c2720] overflow-hidden">
               <div
-                key={pair.num}
-                className="grid grid-cols-12 items-center py-1 px-1.5 rounded hover:bg-[#262421]/60 text-[#d4cfc7]"
+                className="h-full bg-gradient-to-r from-amber-600 to-yellow-400 rounded-full transition-all duration-700"
+                style={{ width: `${Math.min(100, 25 + (searchDuration / 15) * 75)}%`, margin: '0 auto' }}
+              />
+            </div>
+          </div>
+
+          {onPlayBot && (
+            <button
+              onClick={onPlayBot}
+              className="w-full mt-4 py-2 px-3 rounded-lg bg-[#24201a] hover:bg-[#2e2920] border border-[#3a3328] hover:border-[#d4af37]/40 text-[#c8bfae] hover:text-white text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98"
+            >
+              <Bot className="w-4 h-4 text-amber-400" />
+              <span>Play vs Computer</span>
+            </button>
+          )}
+
+          {onCancelSearch && (
+            <button
+              onClick={onCancelSearch}
+              className="w-full mt-2.5 py-2 rounded-lg bg-[#26221c] hover:bg-red-950/40 text-[#baa994] hover:text-red-300 border border-[#363026] hover:border-red-800/50 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-98"
+            >
+              Cancel Search
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Status Announcement Banner (as seen in screenshot: "Black wins by resignation") */}
+          <div
+            className={`w-full py-2 px-3 text-center text-xs font-semibold tracking-wide border-b border-[#262421] ${
+              isGameOver
+                ? 'bg-[#3b2b1a] text-[#fcd34d]'
+                : 'bg-[#201e1b] text-[#d4cfc7]'
+            }`}
+          >
+            {getStatusBannerText()}
+          </div>
+
+          {/* MOVES Header with Navigation Controls */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#262421] text-[#8a857d] font-semibold text-[11px]">
+            <span>MOVES</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSelectedMoveIndex(0)}
+                className="p-1 hover:bg-[#262421] hover:text-white rounded"
+                title="First Move"
               >
-                {/* Move Number */}
-                <span className="col-span-2 text-[#635f58] font-sans">
-                  {pair.num}.
-                </span>
+                <ChevronsLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() =>
+                  setSelectedMoveIndex(prev => Math.max(0, (prev ?? moves.length - 1) - 1))
+                }
+                className="p-1 hover:bg-[#262421] hover:text-white rounded"
+                title="Previous Move"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() =>
+                  setSelectedMoveIndex(prev => Math.min(moves.length - 1, (prev ?? 0) + 1))
+                }
+                className="p-1 hover:bg-[#262421] hover:text-white rounded"
+                title="Next Move"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setSelectedMoveIndex(null)}
+                className="p-1 hover:bg-[#262421] hover:text-white rounded"
+                title="Latest Move"
+              >
+                <ChevronsRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
 
-                {/* White Move */}
-                <div className="col-span-5 flex items-center">
-                  {pair.white && (
-                    <button
-                      onClick={() => setSelectedMoveIndex(whiteMoveIndex)}
-                      className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${
-                        isWhiteActive
-                          ? 'bg-[#473b2c] text-[#fcd34d] font-bold shadow-sm'
-                          : 'hover:bg-[#262421]'
-                      }`}
-                    >
-                      <span className="text-sm">
-                        {getPieceSymbol(pair.white.piece.type)}
-                      </span>
-                      <span>{pair.white.san}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Black Move */}
-                <div className="col-span-5 flex items-center">
-                  {pair.black && (
-                    <button
-                      onClick={() => setSelectedMoveIndex(blackMoveIndex)}
-                      className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${
-                        isBlackActive
-                          ? 'bg-[#473b2c] text-[#fcd34d] font-bold shadow-sm'
-                          : 'hover:bg-[#262421]'
-                      }`}
-                    >
-                      <span className="text-sm">
-                        {getPieceSymbol(pair.black.piece.type)}
-                      </span>
-                      <span>{pair.black.san}</span>
-                    </button>
-                  )}
-                </div>
+          {/* Move Chronicle Table matching screenshot */}
+          <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5 font-mono text-xs">
+            {pairedMoves.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-[#635f58] italic font-sans text-xs">
+                Awaiting first command...
               </div>
-            );
-          })
-        )}
-      </div>
+            ) : (
+              pairedMoves.map(pair => {
+                const whiteMoveIndex = (pair.num - 1) * 2;
+                const blackMoveIndex = whiteMoveIndex + 1;
+                const isWhiteActive =
+                  selectedMoveIndex === whiteMoveIndex ||
+                  (selectedMoveIndex === null && moves.length - 1 === whiteMoveIndex);
+                const isBlackActive =
+                  selectedMoveIndex === blackMoveIndex ||
+                  (selectedMoveIndex === null && moves.length - 1 === blackMoveIndex);
+
+                return (
+                  <div
+                    key={pair.num}
+                    className="grid grid-cols-12 items-center py-1 px-1.5 rounded hover:bg-[#262421]/60 text-[#d4cfc7]"
+                  >
+                    {/* Move Number */}
+                    <span className="col-span-2 text-[#635f58] font-sans">
+                      {pair.num}.
+                    </span>
+
+                    {/* White Move */}
+                    <div className="col-span-5 flex items-center">
+                      {pair.white && (
+                        <button
+                          onClick={() => setSelectedMoveIndex(whiteMoveIndex)}
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${
+                            isWhiteActive
+                              ? 'bg-[#473b2c] text-[#fcd34d] font-bold shadow-sm'
+                              : 'hover:bg-[#262421]'
+                          }`}
+                        >
+                          <span className="text-sm">
+                            {getPieceSymbol(pair.white.piece.type)}
+                          </span>
+                          <span>{pair.white.san}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Black Move */}
+                    <div className="col-span-5 flex items-center">
+                      {pair.black && (
+                        <button
+                          onClick={() => setSelectedMoveIndex(blackMoveIndex)}
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors ${
+                            isBlackActive
+                              ? 'bg-[#473b2c] text-[#fcd34d] font-bold shadow-sm'
+                              : 'hover:bg-[#262421]'
+                          }`}
+                        >
+                          <span className="text-sm">
+                            {getPieceSymbol(pair.black.piece.type)}
+                          </span>
+                          <span>{pair.black.san}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
 
       {/* Bottom Resign & Actions Bar */}
       {!isGameOver && (
