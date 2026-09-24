@@ -449,10 +449,10 @@ const app = new Elysia()
         // If the match was actively ongoing between 2 players and at least 1 move was made, remaining player wins by abandonment
         if (room.board.status.type === 'ongoing' && room.players.length === 1 && room.board.moveHistory.length > 0) {
           const remainingPlayer = room.players[0];
-          const winnerColor = remainingPlayer.color;
+          const winnerColor = remainingPlayer!.color;
 
           room.board.status = { type: 'abandoned', winner: winnerColor } as any;
-          console.log(`🔌 Player ${disconnectedPlayer.name} disconnected. ${remainingPlayer.name} wins by abandonment.`);
+          console.log(`🔌 Player ${disconnectedPlayer.name} disconnected. ${remainingPlayer!.name} wins by abandonment.`);
 
           const whitePlayer = winnerColor === 'white' ? remainingPlayer : disconnectedPlayer;
           const blackPlayer = winnerColor === 'black' ? remainingPlayer : disconnectedPlayer;
@@ -480,7 +480,7 @@ const app = new Elysia()
           };
 
           try {
-            remainingPlayer.ws.send(JSON.stringify(gameOverMsg));
+            remainingPlayer!.ws.send(JSON.stringify(gameOverMsg));
           } catch (err) {
             console.error('Error notifying remaining player of abandonment:', err);
           }
