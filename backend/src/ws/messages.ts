@@ -9,8 +9,8 @@ export interface FindMatchPayload {
   player_name: string;
   rating?: number;
   picture?: string | null;
-  // timeControl: number
 }
+
 export interface MakeMovePayload {
   room_id: string;
   from_col: number;
@@ -61,9 +61,29 @@ export interface ChatBroadcastPayload {
   text: string;
 }
 
+export interface PlayerRatingChangePayload {
+  userId: string;
+  ratingBefore: number;
+  ratingAfter: number;
+  ratingChange: number;
+  ratingDeviationBefore: number;
+  ratingDeviationAfter: number;
+}
+
 export interface PlayerResignedPayload {
   color: 'white' | 'black';
   winner: 'white' | 'black';
+  whiteRating?: PlayerRatingChangePayload;
+  blackRating?: PlayerRatingChangePayload;
+}
+
+export interface GameOverPayload {
+  room_id: string;
+  winner: 'white' | 'black' | 'draw';
+  reason: 'checkmate' | 'bare_king' | 'resignation' | 'stalemate' | 'abandoned';
+  isRated: boolean;
+  whiteRating?: PlayerRatingChangePayload;
+  blackRating?: PlayerRatingChangePayload;
 }
 
 export type ServerMessage =
@@ -71,6 +91,7 @@ export type ServerMessage =
   | { type: 'move_made'; payload: MoveMadePayload }
   | { type: 'chat_broadcast'; payload: ChatBroadcastPayload }
   | { type: 'player_resigned'; payload: PlayerResignedPayload }
+  | { type: 'game_over'; payload: GameOverPayload }
   | { type: 'invalid_move'; payload: { reason: string } }
   | { type: 'pong' }
   | { type: 'error'; payload: { message: string } };

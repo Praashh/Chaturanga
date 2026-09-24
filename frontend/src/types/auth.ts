@@ -6,6 +6,7 @@ export interface User {
   onboarded: boolean;
   picture: string | null;
   rating: number;
+  ratingDeviation?: number;
   gamesPlayed: number;
   gamesWon: number;
   createdAt?: string;
@@ -27,6 +28,7 @@ export interface AuthContextType {
   isLoading: boolean;
   loginWithGoogleCredential: (credential: string) => Promise<boolean>;
   completeOnboarding: (username: string) => Promise<{ success: boolean; error?: string }>;
+  refreshUser: () => Promise<void>;
   logout: () => void;
   promptGoogleSignIn: () => void;
   error: string | null;

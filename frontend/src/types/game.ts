@@ -31,7 +31,8 @@ export type GameStatus =
   | { type: 'checkmate'; winner: PieceColor }
   | { type: 'bare_king'; winner: PieceColor }
   | { type: 'stalemate' }
-  | { type: 'resignation'; winner: PieceColor };
+  | { type: 'resignation'; winner: PieceColor }
+  | { type: 'abandoned'; winner: PieceColor };
 
 export interface GameState {
   board: (Piece | null)[][]; // board[row][col], row 0 is Rank 1, row 7 is Rank 8

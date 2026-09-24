@@ -1,9 +1,12 @@
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { Board } from './engine/board';
-import type { ClientMessage, ServerMessage } from './ws/messages';
+import type { ClientMessage, ServerMessage, GameOverPayload } from './ws/messages';
 import { authPlugin } from './auth';
 import { friendsPlugin } from './friends';
+import { ratingPlugin } from './rating/plugin';
+import { RatingService } from './rating/service';
+import { prisma } from './db';
 
 interface PlayerSession {
   id?: string;
@@ -45,6 +48,7 @@ const app = new Elysia()
   )
   .use(authPlugin)
   .use(friendsPlugin)
+  .use(ratingPlugin)
   .get('/api/health', () => ({
     status: 'online',
     service: 'chaturanga-backend',
@@ -57,7 +61,7 @@ const app = new Elysia()
       console.log(`📡 WebSocket client connected: ${ws.id}`);
     },
 
-    message(ws, rawMessage) {
+    async message(ws, rawMessage) {
       try {
         let msg: ClientMessage;
         if (typeof rawMessage === 'string') {
@@ -102,6 +106,24 @@ const app = new Elysia()
 
             const opponent = room.players.find(p => p.ws !== ws);
 
+            let playerRating = 1500;
+            let playerPicture: string | null = null;
+            if (player_id) {
+              const pr = await RatingService.getPlayerRating(player_id);
+              if (pr) playerRating = Math.round(pr.rating);
+              const u = await prisma.user.findUnique({ where: { id: player_id }, select: { picture: true } });
+              if (u) playerPicture = u.picture;
+            }
+
+            let oppRating = 1500;
+            let oppPicture: string | null = null;
+            if (opponent?.id) {
+              const pr = await RatingService.getPlayerRating(opponent.id);
+              if (pr) oppRating = Math.round(pr.rating);
+              const u = await prisma.user.findUnique({ where: { id: opponent.id }, select: { picture: true } });
+              if (u) oppPicture = u.picture;
+            }
+
             const resp: ServerMessage = {
               type: 'room_joined',
               payload: {
@@ -109,6 +131,8 @@ const app = new Elysia()
                 color: assignedColor,
                 opponent: opponent ? opponent.name : null,
                 opponent_id: opponent ? opponent.id : null,
+                opponent_rating: opponent ? oppRating : undefined,
+                opponent_picture: opponent ? oppPicture : null,
               },
             };
             ws.send(JSON.stringify(resp));
@@ -122,6 +146,8 @@ const app = new Elysia()
                   color: opponent.color,
                   opponent: player_name,
                   opponent_id: player_id || null,
+                  opponent_rating: playerRating,
+                  opponent_picture: playerPicture,
                 },
               };
               opponent.ws.send(JSON.stringify(notifyOpponent));
@@ -130,8 +156,20 @@ const app = new Elysia()
           }
 
           case 'find_match': {
-            const { player_id, player_name, rating, picture } = msg.payload;
-            console.log("USER CLICK ON FIND MATCH", matchmakingQueue);
+            const { player_id, player_name, picture } = msg.payload;
+
+            // Fetch authoritative rating from DB if player_id exists
+            let authoritativeRating = 1500;
+            if (player_id) {
+              const pr = await RatingService.getPlayerRating(player_id);
+              if (pr) {
+                authoritativeRating = Math.round(pr.rating);
+              } else if (msg.payload.rating) {
+                authoritativeRating = msg.payload.rating;
+              }
+            }
+
+            console.log(`[Matchmaking] ${player_name} (${player_id}) finding match at authoritative rating ${authoritativeRating}`);
 
             // Prevent duplicate entries if clicked multiple times
             if (matchmakingQueue.some(p => (p.ws.id ? p.ws.id === ws.id : p.ws === ws) || p.playerId === player_id)) {
@@ -146,7 +184,7 @@ const app = new Elysia()
                 matchmakingQueue.push({
                   playerId: player_id,
                   playerName: player_name,
-                  rating: rating ?? 1500,
+                  rating: authoritativeRating,
                   picture: picture ?? null,
                   ws,
                 });
@@ -175,7 +213,7 @@ const app = new Elysia()
                     color: 'white',
                     opponent: player_name,
                     opponent_id: player_id,
-                    opponent_rating: rating ?? 1500,
+                    opponent_rating: authoritativeRating,
                     opponent_picture: picture ?? null,
                   },
                 })
@@ -196,14 +234,14 @@ const app = new Elysia()
                 })
               );
 
-              console.log(`🎮 Match created! Room: ${roomId} between ${opponent.playerName} and ${player_name}`);
+              console.log(`🎮 Match created! Room: ${roomId} between ${opponent.playerName} (${opponent.rating}) and ${player_name} (${authoritativeRating})`);
               break;
             } else {
               // No one is waiting -> push this player to wait
               matchmakingQueue.push({
                 playerId: player_id,
                 playerName: player_name,
-                rating: rating ?? 1500,
+                rating: authoritativeRating,
                 picture: picture ?? null,
                 ws,
               });
@@ -217,20 +255,30 @@ const app = new Elysia()
             const queueIndex = matchmakingQueue.findIndex(p => (p.ws.id ? p.ws.id === ws.id : p.ws === ws));
             if (queueIndex !== -1) {
               matchmakingQueue.splice(queueIndex, 1);
-              console.log(` Player canceled queue. Waiting: ${matchmakingQueue.length}`);
+              console.log(`Player canceled queue. Waiting: ${matchmakingQueue.length}`);
             }
             break;
           }
+
           case 'make_move': {
             const { room_id, from_col, from_row, to_col, to_row } = msg.payload;
             const room = rooms.get(room_id);
 
             if (room) {
-              // Execute move on starter Board engine
-              room.board.makeMove({
+              const moveResult = room.board.makeMove({
                 from: { col: from_col, row: from_row },
                 to: { col: to_col, row: to_row },
               });
+
+              if (!moveResult.success) {
+                ws.send(
+                  JSON.stringify({
+                    type: 'invalid_move',
+                    payload: { reason: moveResult.error || 'Invalid move' },
+                  })
+                );
+                break;
+              }
 
               const broadcast: ServerMessage = {
                 type: 'move_made',
@@ -245,7 +293,56 @@ const app = new Elysia()
 
               // Broadcast move to all room participants
               for (const player of room.players) {
-                player.ws.send(JSON.stringify(broadcast));
+                try {
+                  player.ws.send(JSON.stringify(broadcast));
+                } catch (err) {
+                  console.error('Error broadcasting move:', err);
+                }
+              }
+
+              // Check if game has ended decisively
+              if (room.board.status.type !== 'ongoing') {
+                const whitePlayer = room.players.find(p => p.color === 'white');
+                const blackPlayer = room.players.find(p => p.color === 'black');
+
+                let gameWinner: 'white' | 'black' | 'draw' = 'draw';
+                if (room.board.status.type === 'checkmate' || room.board.status.type === 'bare_king') {
+                  gameWinner = room.board.status.winner;
+                }
+
+                console.log(`🏆 Game over in room ${room_id}: ${room.board.status.type}, winner: ${gameWinner}`);
+
+                const settlement = await RatingService.settleGame({
+                  gameId: room_id,
+                  whitePlayerId: whitePlayer?.id || null,
+                  blackPlayerId: blackPlayer?.id || null,
+                  winner: gameWinner,
+                  endReason: room.board.status.type,
+                  category: 'standard',
+                  isRated: true,
+                });
+
+                const gameOverPayload: GameOverPayload = {
+                  room_id,
+                  winner: gameWinner,
+                  reason: room.board.status.type,
+                  isRated: settlement.isRated,
+                  whiteRating: settlement.white,
+                  blackRating: settlement.black,
+                };
+
+                const gameOverMsg: ServerMessage = {
+                  type: 'game_over',
+                  payload: gameOverPayload,
+                };
+
+                for (const player of room.players) {
+                  try {
+                    player.ws.send(JSON.stringify(gameOverMsg));
+                  } catch (err) {
+                    console.error('Error broadcasting game_over:', err);
+                  }
+                }
               }
             }
             break;
@@ -262,7 +359,11 @@ const app = new Elysia()
                 payload: { sender, text },
               };
               for (const player of room.players) {
-                player.ws.send(JSON.stringify(broadcast));
+                try {
+                  player.ws.send(JSON.stringify(broadcast));
+                } catch (err) {
+                  console.error('Error broadcasting chat:', err);
+                }
               }
             }
             break;
@@ -272,25 +373,53 @@ const app = new Elysia()
             const { room_id } = msg.payload;
             const room = rooms.get(room_id);
 
-            if (room) {
+            if (room && room.board.status.type === 'ongoing') {
               const resigningPlayer = room.players.find(p => (p.ws.id ? p.ws.id === ws.id : p.ws === ws));
               const resigningColor: 'white' | 'black' = msg.payload.color || resigningPlayer?.color || 'white';
               const winner: 'white' | 'black' = resigningColor === 'white' ? 'black' : 'white';
 
               room.board.status = { type: 'resignation', winner };
-              console.log(`Resignation in room ${room_id}: ${resigningColor} resigned, winner: ${winner}`);
+              console.log(`🏳️ Resignation in room ${room_id}: ${resigningColor} resigned, winner: ${winner}`);
 
-              const broadcast: ServerMessage = {
+              const whitePlayer = room.players.find(p => p.color === 'white');
+              const blackPlayer = room.players.find(p => p.color === 'black');
+
+              const settlement = await RatingService.settleGame({
+                gameId: room_id,
+                whitePlayerId: whitePlayer?.id || null,
+                blackPlayerId: blackPlayer?.id || null,
+                winner,
+                endReason: 'resignation',
+                category: 'standard',
+                isRated: true,
+              });
+
+              const resignedMsg: ServerMessage = {
                 type: 'player_resigned',
                 payload: {
                   color: resigningColor,
                   winner,
+                  whiteRating: settlement.white,
+                  blackRating: settlement.black,
+                },
+              };
+
+              const gameOverMsg: ServerMessage = {
+                type: 'game_over',
+                payload: {
+                  room_id,
+                  winner,
+                  reason: 'resignation',
+                  isRated: settlement.isRated,
+                  whiteRating: settlement.white,
+                  blackRating: settlement.black,
                 },
               };
 
               for (const player of room.players) {
                 try {
-                  player.ws.send(JSON.stringify(broadcast));
+                  player.ws.send(JSON.stringify(resignedMsg));
+                  player.ws.send(JSON.stringify(gameOverMsg));
                 } catch (err) {
                   console.error('Error broadcasting resignation:', err);
                 }
@@ -304,20 +433,64 @@ const app = new Elysia()
       }
     },
 
-    close(ws) {
+    async close(ws) {
       // Remove from matchmaking queue if disconnected while searching
       const queueIndex = matchmakingQueue.findIndex(p => (p.ws.id ? p.ws.id === ws.id : p.ws === ws));
       if (queueIndex !== -1) {
         matchmakingQueue.splice(queueIndex, 1);
       }
-      // Remove from active rooms...
+      // Remove from active rooms
       for (const [roomId, room] of rooms.entries()) {
+        const disconnectedPlayer = room.players.find(p => (p.ws.id ? p.ws.id === ws.id : p.ws === ws));
+        if (!disconnectedPlayer) continue;
+
         room.players = room.players.filter(p => (p.ws.id ? p.ws.id !== ws.id : p.ws !== ws));
+
+        // If the match was actively ongoing between 2 players and at least 1 move was made, remaining player wins by abandonment
+        if (room.board.status.type === 'ongoing' && room.players.length === 1 && room.board.moveHistory.length > 0) {
+          const remainingPlayer = room.players[0];
+          const winnerColor = remainingPlayer.color;
+
+          room.board.status = { type: 'abandoned', winner: winnerColor } as any;
+          console.log(`🔌 Player ${disconnectedPlayer.name} disconnected. ${remainingPlayer.name} wins by abandonment.`);
+
+          const whitePlayer = winnerColor === 'white' ? remainingPlayer : disconnectedPlayer;
+          const blackPlayer = winnerColor === 'black' ? remainingPlayer : disconnectedPlayer;
+
+          const settlement = await RatingService.settleGame({
+            gameId: roomId,
+            whitePlayerId: whitePlayer?.id || null,
+            blackPlayerId: blackPlayer?.id || null,
+            winner: winnerColor,
+            endReason: 'abandoned',
+            category: 'standard',
+            isRated: true,
+          });
+
+          const gameOverMsg: ServerMessage = {
+            type: 'game_over',
+            payload: {
+              room_id: roomId,
+              winner: winnerColor,
+              reason: 'abandoned',
+              isRated: settlement.isRated,
+              whiteRating: settlement.white,
+              blackRating: settlement.black,
+            },
+          };
+
+          try {
+            remainingPlayer.ws.send(JSON.stringify(gameOverMsg));
+          } catch (err) {
+            console.error('Error notifying remaining player of abandonment:', err);
+          }
+        }
+
         if (room.players.length === 0) {
           rooms.delete(roomId);
         }
       }
-    }
+    },
   })
   .listen(PORT);
 
@@ -325,3 +498,5 @@ console.log(`Chaturanga Backend (Bun + Elysia + Prisma 7) listening on http://lo
 console.log(`WebSocket endpoint ready at ws://localhost:${PORT}/ws`);
 console.log(`Health check available at http://localhost:${PORT}/api/health`);
 console.log(`Auth endpoints ready at http://localhost:${PORT}/api/auth`);
+console.log(`Leaderboard endpoints ready at http://localhost:${PORT}/api/leaderboard`);
+console.log(`Rating endpoints ready at http://localhost:${PORT}/api/rating`);

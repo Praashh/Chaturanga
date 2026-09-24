@@ -6,6 +6,8 @@ interface PlayerCardProps {
   name: string;
   username?: string;
   rating?: number;
+  ratingDelta?: number;
+  ratingAfter?: number;
   avatarIcon?: string;
   avatarUrl?: string | null;
   isSelf?: boolean;
@@ -26,7 +28,9 @@ interface PlayerCardProps {
 export const PlayerCard: React.FC<PlayerCardProps> = ({
   name,
   username,
-  rating = 1600,
+  rating,
+  ratingDelta,
+  ratingAfter,
   avatarIcon,
   avatarUrl,
   isSelf = false,
@@ -122,9 +126,20 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
             <div className="flex items-center gap-1.5 text-xs font-semibold text-[#e3ded7]">
               {isSelf && countryFlag && <span>{countryFlag}</span>}
               <span>{username || name}</span>
-              {rating && (
+              {(ratingAfter !== undefined || rating !== undefined) && (
                 <span className="text-[#8a857d] font-normal font-mono text-[11px]">
-                  ({rating})
+                  ({Math.round(ratingAfter ?? rating!)})
+                </span>
+              )}
+              {ratingDelta !== undefined && ratingDelta !== null && (
+                <span
+                  className={`text-[10px] font-bold font-mono px-1 py-0.2 rounded border ${
+                    ratingDelta >= 0
+                      ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
+                      : 'text-rose-400 bg-rose-500/15 border-rose-500/30'
+                  }`}
+                >
+                  {ratingDelta >= 0 ? `+${Math.round(ratingDelta)}` : Math.round(ratingDelta)}
                 </span>
               )}
               {isMatchJustFound && (

@@ -8,24 +8,32 @@ datasource db {
 }
 
 model User {
-  id          String   @id
-  email       String   @unique
-  name        String
-  username    String   @unique
-  onboarded   Boolean  @default(false)
-  picture     String?
-  rating      Int      @default(100)
-  gamesPlayed Int      @default(0)
-  gamesWon    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  lastLoginAt DateTime @default(now())
+  id              String    @id
+  email           String    @unique
+  name            String
+  username        String    @unique
+  onboarded       Boolean   @default(false)
+  picture         String?
+  rating          Int       @default(1500)
+  ratingDeviation Float     @default(350.0)
+  gamesPlayed     Int       @default(0)
+  gamesWon        Int       @default(0)
+  lastRatedGameAt DateTime?
+  ratingVersion   Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastLoginAt     DateTime  @default(now())
 
   friends  Friendship[] @relation("UserFriends")
   friendOf Friendship[] @relation("UserFriendOf")
 
   sentRequests     FriendRequest[] @relation("SentRequests")
   receivedRequests FriendRequest[] @relation("ReceivedRequests")
+
+  ratings         PlayerRating[]
+  whiteGames      Game[]          @relation("WhiteGames")
+  blackGames      Game[]          @relation("BlackGames")
+  ratingHistories RatingHistory[]
 
   @@map("user")
 }
@@ -51,4 +59,77 @@ model Friendship {
   friend User @relation("UserFriendOf", fields: [friendId], references: [id], onDelete: Cascade)
 
   @@unique([userId, friendId])
+}
+
+model Game {
+  id                String          @id
+  category          String          @default("standard")
+  isRated           Boolean         @default(true)
+  whitePlayerId     String?
+  blackPlayerId     String?
+  winner            String?         // "white" | "black" | "draw"
+  endReason         String?         // "checkmate" | "bare_king" | "resignation" | "stalemate" | "abandoned"
+  status            String          @default("in_progress") // "in_progress" | "completed" | "aborted"
+  ratingProcessed   Boolean         @default(false)
+  ratingProcessedAt DateTime?
+  createdAt         DateTime        @default(now())
+  completedAt       DateTime?
+
+  whitePlayer     User?           @relation("WhiteGames", fields: [whitePlayerId], references: [id], onDelete: SetNull)
+  blackPlayer     User?           @relation("BlackGames", fields: [blackPlayerId], references: [id], onDelete: SetNull)
+  ratingHistories RatingHistory[]
+
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@index([status])
+  @@map("game")
+}
+
+model PlayerRating {
+  id              String    @id @default(cuid())
+  userId          String
+  category        String    @default("standard") // "standard", "blitz", "rapid", "bullet"
+  rating          Float     @default(1500.0)
+  ratingDeviation Float     @default(350.0)
+  gamesPlayed     Int       @default(0)
+  gamesWon        Int       @default(0)
+  gamesDrawn      Int       @default(0)
+  gamesLost       Int       @default(0)
+  lastRatedGameAt DateTime?
+  ratingSystem    String    @default("glicko-1")
+  ratingVersion   Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([category, rating(sort: Desc), ratingDeviation(sort: Asc)])
+  @@map("player_rating")
+}
+
+model RatingHistory {
+  id                    String   @id @default(cuid())
+  gameId                String
+  userId                String
+  category              String   @default("standard")
+  ratingBefore          Float
+  ratingAfter           Float
+  ratingChange          Float
+  ratingDeviationBefore Float
+  ratingDeviationAfter  Float
+  result                Float    // 1 = win, 0.5 = draw, 0 = loss
+  opponentUserId        String?
+  opponentRatingBefore  Float?
+  opponentRDBefore      Float?
+  ratingSystem          String   @default("glicko-1")
+  ratingVersion         Int      @default(1)
+  createdAt             DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId]) // Enforces idempotency at DB level
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("rating_history")
 }

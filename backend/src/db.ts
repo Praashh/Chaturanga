@@ -22,6 +22,7 @@ export interface UserRecord {
   onboarded: boolean;
   picture: string | null;
   rating: number;
+  ratingDeviation?: number;
   gamesPlayed: number;
   gamesWon: number;
   createdAt: Date;
@@ -132,7 +133,7 @@ export async function upsertUser(data: {
     data.username?.toLowerCase().trim() ||
     (await generateUniqueUsername(data.name || data.email.split('@')[0]!));
 
-  return await prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       id: data.id,
       email: data.email,
@@ -140,12 +141,33 @@ export async function upsertUser(data: {
       username: initialUsername,
       onboarded: false,
       picture: data.picture || null,
-      rating: 100,
+      rating: 1500,
+      ratingDeviation: 350.0,
       gamesPlayed: 0,
       gamesWon: 0,
       lastLoginAt: new Date(),
     },
   });
+
+  // Automatically initialize default category in player_rating
+  await prisma.playerRating.upsert({
+    where: { userId_category: { userId: newUser.id, category: 'standard' } },
+    create: {
+      userId: newUser.id,
+      category: 'standard',
+      rating: 1500.0,
+      ratingDeviation: 350.0,
+      gamesPlayed: 0,
+      gamesWon: 0,
+      gamesDrawn: 0,
+      gamesLost: 0,
+      ratingSystem: 'glicko-1',
+      ratingVersion: 1,
+    },
+    update: {},
+  });
+
+  return newUser;
 }
 
 export async function isUsernameAvailable(
@@ -210,30 +232,18 @@ export async function completeUserOnboarding(
   }
 }
 
+/**
+ * @deprecated Use `RatingService.settleGame()` instead.
+ * Games must be settled with opponent context using Glicko-1.
+ */
 export async function updateUserStats(
   id: string,
   result: 'win' | 'loss' | 'draw'
 ): Promise<UserRecord | null> {
-  const ratingDelta = result === 'win' ? 15 : result === 'loss' ? -15 : 0;
-
-  return await prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id },
-      select: { rating: true },
-    });
-    if (!user) return null;
-
-    const newRating = Math.max(100, user.rating + ratingDelta);
-
-    return await tx.user.update({
-      where: { id },
-      data: {
-        rating: newRating,
-        gamesPlayed: { increment: 1 },
-        ...(result === 'win' ? { gamesWon: { increment: 1 } } : {}),
-      },
-    });
-  });
+  console.warn(
+    `[DEPRECATED] updateUserStats called for user ${id}. Use RatingService.settleGame instead.`
+  );
+  return await prisma.user.findUnique({ where: { id } });
 }
 
 export async function getFriends(userId: string): Promise<FriendProfile[]> {

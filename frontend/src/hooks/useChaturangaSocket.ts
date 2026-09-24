@@ -3,6 +3,24 @@ import type { SquareCoord } from '../types/game';
 
 export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
+export interface RatingUpdateInfo {
+  userId: string;
+  ratingBefore: number;
+  ratingAfter: number;
+  ratingChange: number;
+  ratingDeviationBefore: number;
+  ratingDeviationAfter: number;
+}
+
+export interface GameOverEvent {
+  room_id: string;
+  winner: 'white' | 'black' | 'draw';
+  reason: 'checkmate' | 'bare_king' | 'resignation' | 'stalemate' | 'abandoned';
+  isRated: boolean;
+  whiteRating?: RatingUpdateInfo;
+  blackRating?: RatingUpdateInfo;
+}
+
 export interface MatchedOpponentInfo {
   roomId: string;
   color: 'white' | 'black';
@@ -15,6 +33,7 @@ export interface MatchedOpponentInfo {
 interface UseChaturangaSocketProps {
   roomId: string | null;
   playerName: string;
+  playerId?: string;
   onRemoteMove?: (move: { from: SquareCoord; to: SquareCoord }) => void;
   onRemoteChat?: (chat: { sender: string; text: string }) => void;
   onMatchFound?: (
@@ -25,16 +44,19 @@ interface UseChaturangaSocketProps {
     opponentRating?: number,
     opponentPicture?: string | null
   ) => void;
-  onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black' }) => void;
+  onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black'; whiteRating?: RatingUpdateInfo; blackRating?: RatingUpdateInfo }) => void;
+  onGameOver?: (event: GameOverEvent) => void;
 }
 
 export function useChaturangaSocket({
   roomId,
   playerName,
+  playerId,
   onRemoteMove,
   onRemoteChat,
   onMatchFound,
   onRemoteResign,
+  onGameOver,
 }: UseChaturangaSocketProps) {
   const [status, setStatus] = useState<SocketStatus>('disconnected');
   const [assignedColor, setAssignedColor] = useState<'white' | 'black' | null>(null);
@@ -43,6 +65,8 @@ export function useChaturangaSocket({
   const [chatLog, setChatLog] = useState<{ sender: string; text: string; time: string }[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [matchedOpponent, setMatchedOpponent] = useState<MatchedOpponentInfo | null>(null);
+  const [ratingSettlement, setRatingSettlement] = useState<RatingUpdateInfo | null>(null);
+  const [opponentRatingSettlement, setOpponentRatingSettlement] = useState<RatingUpdateInfo | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const pendingActions = useRef<((ws: WebSocket) => void)[]>([]);
@@ -62,11 +86,20 @@ export function useChaturangaSocket({
   const onRemoteResignRef = useRef(onRemoteResign);
   onRemoteResignRef.current = onRemoteResign;
 
+  const onGameOverRef = useRef(onGameOver);
+  onGameOverRef.current = onGameOver;
+
   const playerNameRef = useRef(playerName);
   playerNameRef.current = playerName;
 
+  const playerIdRef = useRef(playerId);
+  playerIdRef.current = playerId;
+
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
+
+  const assignedColorRef = useRef(assignedColor);
+  assignedColorRef.current = assignedColor;
 
   // Helper to compute correct WS URL
   const getWsUrl = useCallback(() => {
@@ -149,6 +182,7 @@ export function useChaturangaSocket({
             payload: {
               room_id: roomIdRef.current,
               player_name: playerNameRef.current || 'Warrior',
+              player_id: playerIdRef.current,
             },
           };
           ws.send(JSON.stringify(joinMsg));
@@ -207,9 +241,51 @@ export function useChaturangaSocket({
             if (onRemoteChatRef.current) {
               onRemoteChatRef.current(data.payload);
             }
+          } else if (data.type === 'game_over') {
+            const payload: GameOverEvent = data.payload;
+            const isWhite =
+              assignedColorRef.current === 'white' ||
+              (payload.whiteRating && payload.whiteRating.userId === playerIdRef.current);
+
+            const myRating = isWhite ? payload.whiteRating : payload.blackRating;
+            const oppRating = isWhite ? payload.blackRating : payload.whiteRating;
+
+            if (myRating) setRatingSettlement(myRating);
+            if (oppRating) setOpponentRatingSettlement(oppRating);
+
+            const winnerText =
+              payload.winner === 'draw'
+                ? 'Draw!'
+                : `${payload.winner === 'white' ? 'White' : 'Black'} wins!`;
+            const systemChat = {
+              sender: 'System',
+              text: `Game over (${payload.reason}): ${winnerText}${
+                myRating
+                  ? ` (Rating: ${Math.round(myRating.ratingBefore)} → ${Math.round(myRating.ratingAfter)}, ${
+                      myRating.ratingChange >= 0 ? '+' : ''
+                    }${Math.round(myRating.ratingChange)})`
+                  : ''
+              }`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            setChatLog(prev => [...prev, systemChat]);
+            if (onGameOverRef.current) {
+              onGameOverRef.current(payload);
+            }
           } else if (data.type === 'player_resigned') {
             const resigningColor = data.payload.color;
             const winningColor = data.payload.winner;
+
+            const isWhite =
+              assignedColorRef.current === 'white' ||
+              (data.payload.whiteRating && data.payload.whiteRating.userId === playerIdRef.current);
+
+            const myRating = isWhite ? data.payload.whiteRating : data.payload.blackRating;
+            const oppRating = isWhite ? data.payload.blackRating : data.payload.whiteRating;
+
+            if (myRating) setRatingSettlement(myRating);
+            if (oppRating) setOpponentRatingSettlement(oppRating);
+
             const systemChat = {
               sender: 'System',
               text: `${resigningColor === 'white' ? 'White' : 'Black'} resigned. ${winningColor === 'white' ? 'White' : 'Black'} wins!`,
@@ -328,6 +404,8 @@ export function useChaturangaSocket({
       isSearchingRef.current = true;
       setIsSearching(true);
       setMatchedOpponent(null);
+      setRatingSettlement(null);
+      setOpponentRatingSettlement(null);
       playerNameRef.current = name;
 
       safeSend(ws => {
@@ -391,6 +469,11 @@ export function useChaturangaSocket({
     };
   }, [disconnect]);
 
+  const clearRatingSettlement = useCallback(() => {
+    setRatingSettlement(null);
+    setOpponentRatingSettlement(null);
+  }, []);
+
   return {
     status,
     assignedColor,
@@ -399,6 +482,9 @@ export function useChaturangaSocket({
     chatLog,
     isSearching,
     matchedOpponent,
+    ratingSettlement,
+    opponentRatingSettlement,
+    clearRatingSettlement,
     clearMatchedOpponent,
     findMatch,
     cancelFindMatch,

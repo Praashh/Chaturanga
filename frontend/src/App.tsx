@@ -30,7 +30,7 @@ function ChaturangaApp() {
   const [showEvalBar, setShowEvalBar] = useState(true);
   const [shareToast, setShareToast] = useState<string | null>(null);
 
-  const { user, isAuthenticated, isLoading, promptGoogleSignIn } = useAuth();
+  const { user, isAuthenticated, isLoading, promptGoogleSignIn, refreshUser } = useAuth();
   const friends = useFriends();
 
   const [, setCurrentPath] = useState<string>(() => window.location.pathname);
@@ -96,7 +96,14 @@ function ChaturangaApp() {
     resignGame,
     toggleMute,
     playGameStart,
-  } = useChaturangaGame({ isAuthenticated });
+  } = useChaturangaGame({ isAuthenticated, playerId: user?.id });
+
+  // Refresh user profile whenever authoritative rating settlement occurs
+  useEffect(() => {
+    if (socket.ratingSettlement) {
+      refreshUser();
+    }
+  }, [socket.ratingSettlement, refreshUser]);
 
   // Matchmaking search timer & match found animation state
   const [searchSeconds, setSearchSeconds] = useState<number>(0);
@@ -155,6 +162,7 @@ function ChaturangaApp() {
       promptGoogleSignIn();
       return;
     }
+    socket.clearRatingSettlement();
     setMode(newMode);
     if (newMode === 'online') {
       setIsLobbyOpen(true);
@@ -170,6 +178,7 @@ function ChaturangaApp() {
       promptGoogleSignIn();
       return;
     }
+    socket.clearRatingSettlement();
     setMode('pass_and_play');
     setOnlineRoomId(null);
     updateGameRoomUrl(null);
@@ -181,6 +190,7 @@ function ChaturangaApp() {
       promptGoogleSignIn();
       return;
     }
+    socket.clearRatingSettlement();
     setMode('vs_ai');
     setAiDifficulty(difficulty);
     setPlayerColor(color);
@@ -194,6 +204,7 @@ function ChaturangaApp() {
       promptGoogleSignIn();
       return;
     }
+    socket.clearRatingSettlement();
     setMode('online');
     setOnlineRoomId(roomId);
     setOnlinePlayerName(playerName);
@@ -274,6 +285,7 @@ function ChaturangaApp() {
       promptGoogleSignIn();
       return;
     }
+    socket.clearRatingSettlement();
     if (mode === 'online') {
       setIsLobbyOpen(true);
       return;
@@ -301,7 +313,7 @@ function ChaturangaApp() {
 
   // Determine if a king is defeated/resigned for the fallen horizontal state
   const resignedOrMatedColor: PieceColor | null =
-    status.type === 'resignation' || status.type === 'checkmate'
+    status.type === 'resignation' || status.type === 'checkmate' || status.type === 'abandoned'
       ? status.winner === 'white'
         ? 'black'
         : 'white'
@@ -421,6 +433,8 @@ function ChaturangaApp() {
                     : 1800
                   : socket.matchedOpponent?.opponentRating ?? (mode === 'online' ? 1500 : undefined)
               }
+              ratingDelta={mode === 'online' ? socket.opponentRatingSettlement?.ratingChange : undefined}
+              ratingAfter={mode === 'online' ? socket.opponentRatingSettlement?.ratingAfter : undefined}
               avatarUrl={socket.matchedOpponent?.opponentPicture}
               capturedPieces={playerColor === 'white' ? capturedBlack : capturedWhite}
               materialAdvantage={playerColor === 'white' ? materialAdvantageBlack : materialAdvantageWhite}
@@ -516,6 +530,8 @@ function ChaturangaApp() {
               }
               username={user?.username}
               rating={user ? user.rating : undefined}
+              ratingDelta={mode === 'online' ? socket.ratingSettlement?.ratingChange : undefined}
+              ratingAfter={mode === 'online' ? socket.ratingSettlement?.ratingAfter : undefined}
               avatarUrl={user?.picture}
               avatarIcon={!user ? '👑' : undefined}
               countryFlag={user ? '🇮🇳' : undefined}
@@ -545,6 +561,7 @@ function ChaturangaApp() {
               isSearching={socket.isSearching}
               searchDuration={searchSeconds}
               targetRating={user?.rating ?? 1500}
+              ratingSettlement={socket.ratingSettlement}
               onCancelSearch={socket.cancelFindMatch}
               onPlayBot={() => {
                 socket.cancelFindMatch();

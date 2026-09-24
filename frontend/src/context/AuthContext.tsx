@@ -249,6 +249,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [token]
   );
 
+  // Refresh user data from backend
+  const refreshUser = useCallback(async (): Promise<void> => {
+    const activeToken = token || localStorage.getItem(TOKEN_KEY);
+    if (!activeToken) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.user) {
+          setUser(data.user);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+    }
+  }, [token]);
+
   const value: AuthContextType = {
     user,
     token,
@@ -256,6 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     loginWithGoogleCredential,
     completeOnboarding,
+    refreshUser,
     logout,
     promptGoogleSignIn,
     error,

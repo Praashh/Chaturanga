@@ -30,6 +30,11 @@ interface GamePanelProps {
   isSearching?: boolean;
   searchDuration?: number;
   targetRating?: number;
+  ratingSettlement?: {
+    ratingBefore: number;
+    ratingAfter: number;
+    ratingChange: number;
+  } | null;
   onCancelSearch?: () => void;
   onPlayBot?: () => void;
 }
@@ -48,6 +53,7 @@ export const GamePanel: React.FC<GamePanelProps> = ({
   isSearching = false,
   searchDuration = 0,
   targetRating = 1500,
+  ratingSettlement,
   onCancelSearch,
   onPlayBot,
 }) => {
@@ -122,6 +128,9 @@ export const GamePanel: React.FC<GamePanelProps> = ({
     }
     if (status.type === 'resignation') {
       return `${status.winner === 'white' ? 'White' : 'Black'} wins by resignation`;
+    }
+    if (status.type === 'abandoned') {
+      return `${status.winner === 'white' ? 'White' : 'Black'} wins by abandonment`;
     }
     if (status.type === 'stalemate') {
       return 'DRAW BY STALEMATE';
@@ -256,7 +265,25 @@ export const GamePanel: React.FC<GamePanelProps> = ({
                 : 'bg-[#201e1b] text-[#d4cfc7]'
             }`}
           >
-            {getStatusBannerText()}
+            <div>{getStatusBannerText()}</div>
+            {isGameOver && ratingSettlement && (
+              <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#a89f91]">Rating:</span>
+                <span className="text-white font-medium">
+                  {Math.round(ratingSettlement.ratingBefore)} → {Math.round(ratingSettlement.ratingAfter)}
+                </span>
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                    ratingSettlement.ratingChange >= 0
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                  }`}
+                >
+                  {ratingSettlement.ratingChange >= 0 ? '+' : ''}
+                  {Math.round(ratingSettlement.ratingChange)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* MOVES Header with Navigation Controls */}

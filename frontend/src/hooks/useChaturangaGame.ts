@@ -33,6 +33,7 @@ interface BoardSnapshot {
 
 interface UseChaturangaGameOptions {
   isAuthenticated?: boolean;
+  playerId?: string;
 }
 
 export function useChaturangaGame(options?: UseChaturangaGameOptions) {
@@ -162,13 +163,29 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     [playGameEnd]
   );
 
+  // Remote Game Over Handler for WebSockets
+  const handleRemoteGameOver = useCallback(
+    (event: any) => {
+      if (statusRef.current.type !== 'active') return;
+      if (event.winner === 'draw') {
+        setStatus({ type: 'stalemate' });
+      } else {
+        setStatus({ type: event.reason, winner: event.winner });
+      }
+      playGameEnd();
+    },
+    [playGameEnd]
+  );
+
   // WebSocket connection (only connects when room exists AND player is authenticated)
   const socket = useChaturangaSocket({
     roomId: isAuthenticated ? onlineRoomId : null,
     playerName: onlinePlayerName,
+    playerId: options?.playerId,
     onRemoteMove: handleRemoteMove,
     onMatchFound: handleMatchFound,
     onRemoteResign: handleRemoteResign,
+    onGameOver: handleRemoteGameOver,
   });
 
   // Synchronize board perspective and player card with assigned color in online multiplayer

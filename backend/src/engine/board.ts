@@ -1,4 +1,10 @@
-import type { Piece, PieceColor, PieceType, SquareCoord, Move, GameStatus } from './types';
+import type { Piece, PieceColor, SquareCoord, Move, GameStatus } from './types';
+import {
+  createInitialBoard,
+  executeMove,
+  evaluateGameStatus,
+  getLegalMoves,
+} from './rules';
 
 export class Board {
   public squares: (Piece | null)[][];
@@ -7,78 +13,48 @@ export class Board {
   public moveHistory: Move[];
 
   constructor() {
-    this.squares = this.initBoard();
+    this.squares = createInitialBoard();
     this.turn = 'white';
     this.status = { type: 'ongoing' };
     this.moveHistory = [];
   }
 
   /**
-   * Initializes the traditional Ashtāpada Chaturanga piece placement:
-   * Rank 1: Ratha, Ashva, Gaja, Mantri, Raja, Gaja, Ashva, Ratha
-   * Rank 2: 8 Padati
-   * Rank 7: 8 Padati
-   * Rank 8: Ratha, Ashva, Gaja, Mantri, Raja, Gaja, Ashva, Ratha
+   * Executes a move on the board, updates turn, and evaluates game status.
    */
-  private initBoard(): (Piece | null)[][] {
-    const backRank: PieceType[] = [
-      'ratha',
-      'ashva',
-      'gaja',
-      'mantri',
-      'raja',
-      'gaja',
-      'ashva',
-      'ratha',
-    ];
-
-    const createBackRank = (color: PieceColor): (Piece | null)[] =>
-      backRank.map((type) => ({ type, color }));
-
-    const createPawnRank = (color: PieceColor): (Piece | null)[] =>
-      Array.from({ length: 8 }, () => ({ type: 'padati', color }));
-
-    const createEmptyRank = (): (Piece | null)[] => Array(8).fill(null);
-
-    return [
-      createBackRank('white'), // Rank 1 (Row 0)
-      createPawnRank('white'), // Rank 2 (Row 1)
-      createEmptyRank(),       // Rank 3 (Row 2)
-      createEmptyRank(),       // Rank 4 (Row 3)
-      createEmptyRank(),       // Rank 5 (Row 4)
-      createEmptyRank(),       // Rank 6 (Row 5)
-      createPawnRank('black'), // Rank 7 (Row 6)
-      createBackRank('black'), // Rank 8 (Row 7)
-    ];
-  }
-
-  /**
-   * Placeholder for legal move validation and state mutation.
-   * Implement your custom Chaturanga rules here!
-   */
-  public makeMove(move: Move): { success: boolean; error?: string } {
-    const fromRow = this.squares[move.from.row];
-    const toRow = this.squares[move.to.row];
-
-    if (!fromRow || !toRow) {
-      return { success: false, error: 'Move coordinates out of bounds' };
+  public makeMove(move: Move): { success: boolean; error?: string; status: GameStatus } {
+    if (this.status.type !== 'ongoing') {
+      return { success: false, error: 'Game is already completed', status: this.status };
     }
 
-    const piece = fromRow[move.from.col];
+    const { from, to } = move;
+    const piece = this.squares[from.row]?.[from.col];
+
     if (!piece) {
-      return { success: false, error: 'No piece at source square' };
+      return { success: false, error: 'No piece at source square', status: this.status };
     }
 
     if (piece.color !== this.turn) {
-      return { success: false, error: `It is ${this.turn}'s turn` };
+      return { success: false, error: `It is ${this.turn}'s turn`, status: this.status };
     }
 
-    // Move piece on board
-    toRow[move.to.col] = piece;
-    fromRow[move.from.col] = null;
-    this.moveHistory.push(move);
-    this.turn = this.turn === 'white' ? 'black' : 'white';
+    // Verify move is legal
+    const legalMoves = getLegalMoves(this.squares, from);
+    const isLegal = legalMoves.some((m) => m.col === to.col && m.row === to.row);
+    if (!isLegal) {
+      return { success: false, error: 'Illegal move', status: this.status };
+    }
 
-    return { success: true };
+    const { newBoard, moveRecord } = executeMove(this.squares, from, to);
+    this.squares = newBoard;
+    this.moveHistory.push(moveRecord);
+
+    const nextTurn: PieceColor = this.turn === 'white' ? 'black' : 'white';
+    this.turn = nextTurn;
+
+    // Evaluate game status (checkmate, bare_king, stalemate, or ongoing)
+    this.status = evaluateGameStatus(this.squares, nextTurn);
+
+    return { success: true, status: this.status };
   }
 }
