@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, Bot, Globe, Shuffle } from 'lucide-react';
+import { Users, Bot, Globe, Shuffle } from 'lucide-react';
 import type { GameMode, AIDifficulty, PieceColor } from '../types/game';
 import { generateRoomId } from '../utils/roomUrl';
 import { useAuth } from '../context/AuthContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from './ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
 
 interface LobbyModalProps {
   isOpen: boolean;
@@ -52,79 +65,57 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     }
   }, [initialRoomId]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 select-none">
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl bg-[#1a1815] border border-[#262421] shadow-2xl flex flex-col text-[#e3ded7]">
+    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-[#1a1815] border-[#262421] text-[#e3ded7] flex flex-col">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#262421] bg-[#161512]">
+        <DialogHeader className="px-5 py-3.5 border-b border-[#262421] bg-[#161512] text-left">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-[#262421] border border-[#3a352f] flex items-center justify-center text-sm">
+            <div className="w-7 h-7 rounded-md bg-[#262421] border border-[#3a352f] flex items-center justify-center text-sm shadow-inner">
               ⚔️
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-[#ffffff] tracking-wide">
+              <DialogTitle className="text-sm font-semibold text-white tracking-wide">
                 Game Setup
-              </h2>
-              <p className="text-[11px] text-[#8a857d]">
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-[#8a857d]">
                 Choose how you want to play Chaturanga
-              </p>
+              </DialogDescription>
             </div>
           </div>
-
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-[#262421] text-[#8a857d] hover:text-[#ffffff] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Mode Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 p-3 border-b border-[#262421] bg-[#1a1815] text-xs">
-          <button
-            onClick={() => setSelectedTab('pass_and_play')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${selectedTab === 'pass_and_play'
-                ? 'bg-[#1d4ed8] text-white font-medium shadow-sm'
-                : 'hover:bg-[#262421] text-[#b5b0a8]'
-              }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Pass & Play</span>
-          </button>
+        <Tabs
+          value={selectedTab}
+          onValueChange={v => setSelectedTab(v as GameMode)}
+          className="flex-1 flex flex-col"
+        >
+          <div className="p-3 border-b border-[#262421] bg-[#1a1815]">
+            <TabsList className="grid grid-cols-3 w-full bg-[#201e1b] border border-[#2c2823] p-1">
+              <TabsTrigger value="pass_and_play" className="gap-1.5 data-[state=active]:bg-[#2a2418] data-[state=active]:text-[#fcd34d]">
+                <Users className="w-3.5 h-3.5" />
+                <span>Pass & Play</span>
+              </TabsTrigger>
+              <TabsTrigger value="vs_ai" className="gap-1.5 data-[state=active]:bg-[#2a2418] data-[state=active]:text-[#fcd34d]">
+                <Bot className="w-3.5 h-3.5" />
+                <span>Vs CPU</span>
+              </TabsTrigger>
+              <TabsTrigger value="online" className="gap-1.5 data-[state=active]:bg-[#2a2418] data-[state=active]:text-[#fcd34d]">
+                <Globe className="w-3.5 h-3.5" />
+                <span>Online</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <button
-            onClick={() => setSelectedTab('vs_ai')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${selectedTab === 'vs_ai'
-                ? 'bg-[#1d4ed8] text-white font-medium shadow-sm'
-                : 'hover:bg-[#262421] text-[#b5b0a8]'
-              }`}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Vs CPU</span>
-          </button>
-
-          <button
-            onClick={() => setSelectedTab('online')}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-md transition-colors ${selectedTab === 'online'
-                ? 'bg-[#1d4ed8] text-white font-medium shadow-sm'
-                : 'hover:bg-[#262421] text-[#b5b0a8]'
-              }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Online</span>
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 space-y-4 text-xs">
-          {selectedTab === 'pass_and_play' && (
-            <div className="space-y-3">
+          {/* Modal Body */}
+          <div className="p-5 space-y-4 text-xs">
+            {/* PASS AND PLAY */}
+            <TabsContent value="pass_and_play" className="mt-0 space-y-3">
               <p className="text-[#b5b0a8] leading-relaxed">
                 Take turns playing locally on the same device. White moves first, followed by Black.
               </p>
-              <button
+              <Button
                 onClick={() => {
                   if (!isAuthenticated) {
                     promptGoogleSignIn();
@@ -133,65 +124,77 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                   onSelectLocal();
                   onClose();
                 }}
-                className="w-full py-2.5 rounded-lg bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-semibold transition-colors shadow"
+                variant="gold"
+                className="w-full h-10 font-semibold"
               >
                 Start Local Game
-              </button>
-            </div>
-          )}
+              </Button>
+            </TabsContent>
 
-          {selectedTab === 'vs_ai' && (
-            <div className="space-y-3.5">
+            {/* VS AI */}
+            <TabsContent value="vs_ai" className="mt-0 space-y-3.5">
               <div>
-                <label className="block text-[11px] text-[#8a857d] mb-1.5 font-medium">
+                <Label className="block text-[11px] text-[#8a857d] mb-1.5 font-medium">
                   Bot Strength
-                </label>
+                </Label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['novice', 'warrior', 'senapati'] as AIDifficulty[]).map(diff => (
-                    <button
+                    <Button
                       key={diff}
+                      type="button"
+                      variant={aiDiff === diff ? 'secondary' : 'outline'}
+                      size="sm"
                       onClick={() => setAiDiff(diff)}
-                      className={`py-1.5 px-2 rounded-md border text-xs capitalize transition-colors ${aiDiff === diff
-                          ? 'bg-[#262421] border-[#1d4ed8] text-white font-medium'
+                      className={`capitalize h-8 text-xs ${
+                        aiDiff === diff
+                          ? 'bg-[#2a2418] text-[#fcd34d] border-[#d4af37]/50 font-semibold'
                           : 'bg-[#201e1b] border-[#2c2823] text-[#b5b0a8]'
-                        }`}
+                      }`}
                     >
                       {diff}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] text-[#8a857d] mb-1.5 font-medium">
+                <Label className="block text-[11px] text-[#8a857d] mb-1.5 font-medium">
                   Your Pieces
-                </label>
+                </Label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
+                  <Button
+                    type="button"
+                    variant={aiColor === 'white' ? 'secondary' : 'outline'}
+                    size="sm"
                     onClick={() => setAiColor('white')}
-                    className={`py-1.5 px-3 rounded-md border text-xs flex items-center justify-center gap-2 transition-colors ${aiColor === 'white'
-                        ? 'bg-[#262421] border-[#1d4ed8] text-white font-medium'
+                    className={`h-8 gap-2 text-xs ${
+                      aiColor === 'white'
+                        ? 'bg-[#2a2418] text-[#fcd34d] border-[#d4af37]/50 font-semibold'
                         : 'bg-[#201e1b] border-[#2c2823] text-[#b5b0a8]'
-                      }`}
+                    }`}
                   >
-                    <span className="w-2.5 h-2.5 rounded-full bg-white" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-white shadow-sm" />
                     <span>White (First)</span>
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
+                    type="button"
+                    variant={aiColor === 'black' ? 'secondary' : 'outline'}
+                    size="sm"
                     onClick={() => setAiColor('black')}
-                    className={`py-1.5 px-3 rounded-md border text-xs flex items-center justify-center gap-2 transition-colors ${aiColor === 'black'
-                        ? 'bg-[#262421] border-[#1d4ed8] text-white font-medium'
+                    className={`h-8 gap-2 text-xs ${
+                      aiColor === 'black'
+                        ? 'bg-[#2a2418] text-[#fcd34d] border-[#d4af37]/50 font-semibold'
                         : 'bg-[#201e1b] border-[#2c2823] text-[#b5b0a8]'
-                      }`}
+                    }`}
                   >
                     <span className="w-2.5 h-2.5 rounded-full bg-zinc-900 border border-zinc-500" />
                     <span>Black</span>
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <button
+              <Button
                 onClick={() => {
                   if (!isAuthenticated) {
                     promptGoogleSignIn();
@@ -200,15 +203,15 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                   onSelectAI(aiDiff, aiColor);
                   onClose();
                 }}
-                className="w-full py-2.5 rounded-lg bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-semibold transition-colors shadow mt-2"
+                variant="gold"
+                className="w-full h-10 font-semibold mt-2"
               >
                 Play Against Bot
-              </button>
-            </div>
-          )}
+              </Button>
+            </TabsContent>
 
-          {selectedTab === 'online' && (
-            <div className="space-y-3.5">
+            {/* ONLINE */}
+            <TabsContent value="online" className="mt-0 space-y-3.5">
               {/* Quick Matchmaking Section */}
               <div className="p-3.5 rounded-xl bg-gradient-to-b from-[#25221d] to-[#1e1c18] border border-[#3d372d] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
@@ -219,13 +222,14 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       <p className="text-[10px] text-[#8a857d]">Automatically pair with any waiting player</p>
                     </div>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                  <Badge variant="emerald" className="font-medium text-[10px]">
                     1v1 Online
-                  </span>
+                  </Badge>
                 </div>
 
-                <button
+                <Button
                   type="button"
+                  variant="gold"
                   onClick={() => {
                     if (!isAuthenticated) {
                       promptGoogleSignIn();
@@ -236,61 +240,61 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       onFindMatch();
                     }
                   }}
-                  className="w-full py-2.5 rounded-lg bg-[#d4af37] hover:bg-[#fcd34d] text-zinc-950 font-bold text-xs transition-all duration-150 shadow-md hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full h-10 font-bold"
                 >
                   <span>⚡</span>
                   <span>Find Match Now</span>
-                </button>
+                </Button>
               </div>
 
               {/* Divider */}
               <div className="flex items-center gap-3 my-0.5">
-                <div className="h-px bg-[#262421] flex-1" />
+                <Separator className="flex-1 bg-[#262421]" />
                 <span className="text-[10px] font-semibold text-[#635f58] tracking-wider uppercase">or custom room</span>
-                <div className="h-px bg-[#262421] flex-1" />
+                <Separator className="flex-1 bg-[#262421]" />
               </div>
 
               {/* Custom Private Room Section */}
               <div className="space-y-2.5">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] text-[#8a857d] font-medium">
+                    <Label className="text-[11px] text-[#8a857d] font-medium">
                       Room Code
-                    </label>
+                    </Label>
                     <button
                       type="button"
                       onClick={() => setRoomId(generateRoomId())}
-                      className="flex items-center gap-1 text-[10px] text-[#d4af37] hover:text-[#fcd34d] transition-colors"
+                      className="flex items-center gap-1 text-[10px] text-[#d4af37] hover:text-[#fcd34d] transition-colors cursor-pointer"
                       title="Generate unique room code"
                     >
                       <Shuffle className="w-3 h-3" />
                       <span>Roll Random</span>
                     </button>
                   </div>
-                  <input
+                  <Input
                     type="text"
                     value={roomId}
                     onChange={e => setRoomId(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2c2823] text-white font-mono text-xs focus:outline-none focus:border-[#1d4ed8]"
+                    className="font-mono"
                     placeholder="e.g. royal-chaturanga"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-[#8a857d] mb-1 font-medium">
+                  <Label className="block text-[11px] text-[#8a857d] mb-1 font-medium">
                     Your Display Name
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     value={playerName}
                     onChange={e => setPlayerName(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-md bg-[#201e1b] border border-[#2c2823] text-white text-xs focus:outline-none focus:border-[#1d4ed8]"
                     placeholder="e.g. jaunty-player"
                   />
                 </div>
 
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => {
                     if (!isAuthenticated) {
                       promptGoogleSignIn();
@@ -299,15 +303,15 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                     onSelectOnline(roomId, playerName);
                     onClose();
                   }}
-                  className="w-full py-2.5 rounded-lg bg-[#262421] hover:bg-[#322e29] border border-[#3a352f] text-white font-semibold transition-colors shadow mt-1 text-xs cursor-pointer"
+                  className="w-full h-9 font-semibold border border-[#3a352f] hover:bg-[#322e29] mt-1"
                 >
                   Join Private Room
-                </button>
+                </Button>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            </TabsContent>
+          </div>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 };

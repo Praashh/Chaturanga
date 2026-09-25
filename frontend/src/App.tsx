@@ -19,16 +19,18 @@ import {
   getGameShareUrl,
   generateRoomId,
 } from './utils/roomUrl';
+import { toast } from 'sonner';
+import { Card } from './components/ui/card';
+import { Toaster } from './components/ui/sonner';
+import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
 import type { GameMode, AIDifficulty, PieceColor, SquareCoord } from './types/game';
 import type { FriendUser } from './types/friends';
 
 function ChaturangaApp() {
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   const [showEvalBar, setShowEvalBar] = useState(true);
-  const [shareToast, setShareToast] = useState<string | null>(null);
 
   const { user, isAuthenticated, isLoading, promptGoogleSignIn, refreshUser } = useAuth();
   const friends = useFriends();
@@ -230,8 +232,7 @@ function ChaturangaApp() {
     const shareUrl = getGameShareUrl(targetRoom);
     if (navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl).then(() => {
-        setShareToast(`Game room link copied! Send it to your friend to play.`);
-        setTimeout(() => setShareToast(null), 3000);
+        toast.success('Game room link copied! Send it to your friend to play.');
       });
     }
   };
@@ -247,8 +248,7 @@ function ChaturangaApp() {
     const shareUrl = getGameShareUrl(roomId);
     if (navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl).then(() => {
-        setShareToast(`Challenged ${friend.name}! Game link copied to clipboard.`);
-        setTimeout(() => setShareToast(null), 3000);
+        toast.success(`Challenged ${friend.name}! Game link copied to clipboard.`);
       });
     }
   };
@@ -331,7 +331,11 @@ function ChaturangaApp() {
     return (
       <div className="min-h-screen w-full bg-[#0d0c0a] flex items-center justify-center text-[#d4af37]">
         <div className="flex flex-col items-center gap-3">
-          <span className="text-3xl animate-bounce">👑</span>
+          <img
+            src="/logo.png"
+            alt="Chaturanga Logo"
+            className="w-14 h-14 object-contain animate-pulse drop-shadow-[0_4px_12px_rgba(212,175,55,0.25)]"
+          />
           <span className="text-xs font-mono tracking-widest uppercase text-[#8a857d]">Entering Realm...</span>
         </div>
       </div>
@@ -343,30 +347,27 @@ function ChaturangaApp() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#161512] text-[#e3ded7] font-sans">
+    <SidebarProvider defaultOpen={true}>
       {/* Left Navigation Sidebar */}
       <Sidebar
         currentMode={mode}
-        onSelectMode={handleSelectMode}
-        onOpenRules={() => setIsRulesOpen(true)}
-        onOpenFriends={() => setIsFriendsOpen(true)}
-        incomingRequestsCount={friends.incomingCount}
-        isOpenMobile={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        onFindMatch={handleFindMatch}
-      />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header */}
-        <TopBar
-          onToggleMobileMenu={() => setIsMobileSidebarOpen(prev => !prev)}
-          isMuted={isMuted}
-          onToggleMute={toggleMute}
-          onOpenSettings={() => setIsRulesOpen(true)}
+          onSelectMode={handleSelectMode}
+          onOpenRules={() => setIsRulesOpen(true)}
           onOpenFriends={() => setIsFriendsOpen(true)}
-          friendsCount={friends.friendsCount}
+          incomingRequestsCount={friends.incomingCount}
+          onFindMatch={handleFindMatch}
         />
+
+        {/* Main Content Area */}
+        <SidebarInset className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
+          {/* Top Header */}
+          <TopBar
+            isMuted={isMuted}
+            onToggleMute={toggleMute}
+            onOpenSettings={() => setIsRulesOpen(true)}
+            onOpenFriends={() => setIsFriendsOpen(true)}
+            friendsCount={friends.friendsCount}
+          />
 
         {/* Center Battle Field & Control Panel */}
         <div
@@ -449,9 +450,9 @@ function ChaturangaApp() {
                   ? async () => {
                       const res = await friends.sendRequest(socket.opponentId!);
                       if (res.success) {
-                        setShareToast(`Alliance request sent to ${opponentName}!`);
+                        toast.success(`Alliance request sent to ${opponentName}!`);
                       } else {
-                        setShareToast(res.error || 'Failed to send request');
+                        toast.error(res.error || 'Failed to send request');
                       }
                     }
                   : undefined
@@ -492,12 +493,12 @@ function ChaturangaApp() {
                   className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/65 backdrop-blur-[2px] rounded cursor-pointer transition-all duration-300"
                   title="Click to sign in with Google"
                 >
-                  <div
+                  <Card
                     onClick={e => e.stopPropagation()}
-                    className="flex flex-col items-center text-center p-6 rounded-2xl bg-[#1c1a17]/95 border border-[#3d3830] shadow-[0_20px_50px_rgba(0,0,0,0.85)] max-w-[280px] sm:max-w-[320px] animate-in fade-in zoom-in-95 duration-200"
+                    className="flex flex-col items-center text-center p-6 rounded-2xl bg-[#1c1a17]/95 border-[#3d3830] shadow-[0_20px_50px_rgba(0,0,0,0.85)] max-w-[280px] sm:max-w-[320px] animate-in fade-in zoom-in-95 duration-200"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-[#262421] border border-[#d4af37]/40 flex items-center justify-center text-2xl shadow-inner mb-3">
-                      👑
+                    <div className="w-14 h-14 rounded-2xl bg-[#262421] border border-[#d4af37]/40 flex items-center justify-center p-2.5 shadow-inner mb-3">
+                      <img src="/logo.png" alt="Chaturanga Logo" className="w-full h-full object-contain" />
                     </div>
                     <h3 className="font-serif font-bold text-base sm:text-lg text-[#fcd34d] tracking-wide mb-1">
                       Sign in to Play
@@ -514,7 +515,7 @@ function ChaturangaApp() {
                         width={240}
                       />
                     </div>
-                  </div>
+                  </Card>
                 </div>
               )}
             </div>
@@ -570,42 +571,35 @@ function ChaturangaApp() {
             />
           </div>
         </div>
-      </div>
-
-      {/* Copy Toast Feedback */}
-      {shareToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg bg-[#201e1b] border border-emerald-500/50 text-emerald-300 text-xs font-semibold shadow-2xl flex items-center gap-2 animate-in fade-in duration-150">
-          <span>✓</span>
-          <span>{shareToast}</span>
-        </div>
-      )}
+      </SidebarInset>
 
       {/* Modals */}
-      <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
-      <FriendsModal
-        isOpen={isFriendsOpen}
-        onClose={() => setIsFriendsOpen(false)}
-        onChallengeFriend={handleChallengeFriend}
-      />
-      <LobbyModal
-        isOpen={isLobbyOpen}
-        currentMode={mode}
-        currentDifficulty={aiDifficulty}
-        initialRoomId={onlineRoomId}
-        onClose={() => setIsLobbyOpen(false)}
-        onSelectLocal={handleSelectLocal}
-        onSelectAI={handleSelectAI}
-        onSelectOnline={handleSelectOnline}
-        onFindMatch={handleFindMatch}
-      />
-    </div>
-  );
+    <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
+    <FriendsModal
+      isOpen={isFriendsOpen}
+      onClose={() => setIsFriendsOpen(false)}
+      onChallengeFriend={handleChallengeFriend}
+    />
+    <LobbyModal
+      isOpen={isLobbyOpen}
+      currentMode={mode}
+      currentDifficulty={aiDifficulty}
+      initialRoomId={onlineRoomId}
+      onClose={() => setIsLobbyOpen(false)}
+      onSelectLocal={handleSelectLocal}
+      onSelectAI={handleSelectAI}
+      onSelectOnline={handleSelectOnline}
+      onFindMatch={handleFindMatch}
+    />
+  </SidebarProvider>
+);
 }
 
 export default function App() {
   return (
     <AuthProvider>
       <ChaturangaApp />
+      <Toaster />
     </AuthProvider>
   );
 }

@@ -9,10 +9,30 @@ import {
   BookOpen,
   GraduationCap,
   HelpCircle,
+  LogOut,
 } from 'lucide-react';
 import type { GameMode } from '../types/game';
 import { useAuth } from '../context/AuthContext';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  useSidebar,
+} from './ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 interface SidebarProps {
   currentMode: GameMode;
@@ -20,8 +40,6 @@ interface SidebarProps {
   onOpenRules: () => void;
   onOpenFriends?: () => void;
   incomingRequestsCount?: number;
-  isOpenMobile: boolean;
-  onCloseMobile: () => void;
   onFindMatch?: () => void;
 }
 
@@ -31,11 +49,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenRules,
   onOpenFriends,
   incomingRequestsCount = 0,
-  isOpenMobile,
-  onCloseMobile,
   onFindMatch,
 }) => {
   const { user, isAuthenticated, logout, promptGoogleSignIn } = useAuth();
+  const { isMobile, setOpenMobile, state } = useSidebar();
+  const isCollapsed = state === 'collapsed' && !isMobile;
 
   const handleModeClick = (mode: GameMode) => {
     if (!isAuthenticated) {
@@ -43,169 +61,226 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return;
     }
     onSelectMode(mode);
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
   return (
-    <>
-      {/* Mobile backdrop */}
-      {isOpenMobile && (
+    <ShadcnSidebar className="bg-[#161512] border-r border-[#262421] text-[#b5b0a8]">
+      {/* Brand Header */}
+      <SidebarHeader className="p-3">
         <div
-          onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
-        />
-      )}
-
-      <aside
-        className={`fixed md:static top-0 left-0 bottom-0 z-50 w-52 bg-[#161512] border-r border-[#262421] flex flex-col justify-between py-3 px-2 overflow-y-auto select-none transition-transform duration-200 text-[#b5b0a8] text-xs font-medium shrink-0 ${isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          onClick={() => handleModeClick('pass_and_play')}
+          className={`flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity ${
+            isCollapsed ? 'justify-center px-0' : 'px-1'
           }`}
-      >
-        {/* Brand Logo */}
-        <div>
-          <div className="flex items-center gap-2.5 px-3 py-2 mb-3">
-            <div className="w-7 h-7 rounded-md bg-[#262421] border border-[#3a352f] flex items-center justify-center text-sm">
-              👑
-            </div>
+          title="Chaturanga"
+        >
+          <div className="w-8 h-8 rounded-lg bg-[#221f1b] border border-[#3a352f] p-1 flex items-center justify-center shrink-0 shadow-sm">
+            <img
+              src="/logo.png"
+              alt="Chaturanga Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          {!isCollapsed && (
             <span className="font-serif font-bold text-base tracking-wide text-[#e3ded7]">
               Chaturanga
             </span>
-          </div>
-
-          {/* Core Game Modes */}
-          <nav className="space-y-1">
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  promptGoogleSignIn();
-                  return;
-                }
-                onFindMatch?.();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left bg-gradient-to-r from-[#2a2418] to-[#1e1c18] border border-[#d4af37]/30 text-[#fcd34d] hover:border-[#d4af37]/60 hover:text-[#fef08a] shadow-sm mb-1 cursor-pointer"
-            >
-              <span className="text-sm">⚡</span>
-              <span className="font-semibold text-xs tracking-wide">Quick Match</span>
-            </button>
-
-            <button
-              onClick={() => handleModeClick('pass_and_play')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'pass_and_play'
-                  ? 'bg-[#262421] text-[#ffffff] font-semibold'
-                  : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-                }`}
-            >
-              <Home className="w-4 h-4 text-[#8a857d]" />
-              <span>Home</span>
-            </button>
-
-            <button
-              onClick={() => handleModeClick('vs_ai')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${currentMode === 'vs_ai'
-                  ? 'bg-[#262421] text-[#ffffff] font-semibold'
-                  : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-                }`}
-            >
-              <Monitor className="w-4 h-4 text-[#8a857d]" />
-              <span>Player vs CPU</span>
-            </button>
-
-            <button
-              onClick={() => handleModeClick('online')}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left relative ${currentMode === 'online'
-                  ? 'bg-[#262421] text-[#ffffff] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#d4af37] before:rounded-r'
-                  : 'hover:bg-[#201e1b] hover:text-[#e3ded7]'
-                }`}
-            >
-              <Users className="w-4 h-4 text-[#8a857d]" />
-              <span>Player vs Player</span>
-            </button>
-
-            <button
-              onClick={() => handleModeClick('pass_and_play')}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
-            >
-              <User className="w-4 h-4 text-[#8a857d]" />
-              <span>Play vs Self</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  promptGoogleSignIn();
-                  return;
-                }
-                onOpenFriends?.();
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <UserPlus className="w-4 h-4 text-[#d4af37]" />
-                <span>Friends</span>
-              </div>
-              {incomingRequestsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {incomingRequestsCount}
-                </span>
-              )}
-            </button>
-          </nav>
-
-          {/* Learn & Explore Navigation */}
-          <div className="mt-4 pt-3 border-t border-[#262421] space-y-0.5">
-            <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  promptGoogleSignIn();
-                  return;
-                }
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
-            >
-              <Puzzle className="w-4 h-4 text-[#8a857d]" />
-              <span>Puzzles</span>
-            </button>
-            <button
-              onClick={onOpenRules}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
-            >
-              <BookOpen className="w-4 h-4 text-[#8a857d]" />
-              <span>Rules</span>
-            </button>
-            <button
-              onClick={onOpenRules}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
-            >
-              <GraduationCap className="w-4 h-4 text-[#8a857d]" />
-              <span>Terms</span>
-            </button>
-            <button
-              onClick={onOpenRules}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left"
-            >
-              <HelpCircle className="w-4 h-4 text-[#8a857d]" />
-              <span>Help</span>
-            </button>
-          </div>
+          )}
         </div>
+      </SidebarHeader>
 
-        {/* Bottom Social & Sign In (Google only) */}
-        <div className="mt-4 pt-3 border-t border-[#262421] space-y-2">
+      {/* Main Navigation Content */}
+      <SidebarContent className="px-2">
+        <SidebarGroup className="p-0">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {/* Quick Match Action */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  variant="gold"
+                  tooltip="Quick Match (1v1 Online)"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      promptGoogleSignIn();
+                      return;
+                    }
+                    onFindMatch?.();
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                  className="mb-1.5 h-9"
+                >
+                  <span className="text-sm shrink-0">⚡</span>
+                  {!isCollapsed && (
+                    <span className="font-semibold text-xs tracking-wide">Quick Match</span>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={currentMode === 'pass_and_play'}
+                  tooltip="Home / Local Pass & Play"
+                  onClick={() => handleModeClick('pass_and_play')}
+                >
+                  <Home className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Home</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={currentMode === 'vs_ai'}
+                  tooltip="Play vs Computer"
+                  onClick={() => handleModeClick('vs_ai')}
+                >
+                  <Monitor className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Player vs CPU</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={currentMode === 'online'}
+                  tooltip="Player vs Player (Online)"
+                  onClick={() => handleModeClick('online')}
+                  className={
+                    currentMode === 'online' && !isCollapsed
+                      ? 'relative before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-[#d4af37] before:rounded-r'
+                      : ''
+                  }
+                >
+                  <Users className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Player vs Player</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Play vs Self"
+                  onClick={() => handleModeClick('pass_and_play')}
+                >
+                  <User className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Play vs Self</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Friends & Allies"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      promptGoogleSignIn();
+                      return;
+                    }
+                    onOpenFriends?.();
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                >
+                  <UserPlus className="w-4 h-4 text-[#d4af37] shrink-0" />
+                  {!isCollapsed && <span>Friends</span>}
+                </SidebarMenuButton>
+                {incomingRequestsCount > 0 && !isCollapsed && (
+                  <SidebarMenuBadge>
+                    <Badge variant="gold" className="px-1.5 py-0 text-[10px]">
+                      {incomingRequestsCount}
+                    </Badge>
+                  </SidebarMenuBadge>
+                )}
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator className="my-2" />
+
+        {/* Learn & Explore Section */}
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel>Learn & Strategy</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Puzzles"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      promptGoogleSignIn();
+                      return;
+                    }
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                >
+                  <Puzzle className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Puzzles</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Piece Movements & Rules"
+                  onClick={() => {
+                    onOpenRules();
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                >
+                  <BookOpen className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Rules</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Terms & Sanskrit Glossary"
+                  onClick={() => {
+                    onOpenRules();
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                >
+                  <GraduationCap className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Terms</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Help & FAQ"
+                  onClick={() => {
+                    onOpenRules();
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                >
+                  <HelpCircle className="w-4 h-4 text-[#8a857d] shrink-0" />
+                  {!isCollapsed && <span>Help</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      {/* Footer Profile & Social */}
+      <SidebarFooter className="p-2 border-t border-[#262421]">
+        {!isCollapsed && (
           <a
             href="https://x.com/10xpraash"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left text-zinc-400"
+            className="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-[#201e1b] hover:text-[#e3ded7] transition-colors text-left text-zinc-400 text-xs font-medium mb-1"
           >
             <span className="font-bold text-xs">𝕏</span>
             <span>Follow on X</span>
           </a>
+        )}
 
-          {!isAuthenticated ? (
-            <div className="space-y-1.5">
-              <div className="px-3 text-[10px] font-semibold tracking-wider text-[#635f58] uppercase">
+        {!isAuthenticated ? (
+          !isCollapsed ? (
+            <div className="space-y-1.5 pt-1">
+              <div className="px-2 text-[10px] font-semibold tracking-wider text-[#635f58] uppercase">
                 Sign In
               </div>
-
-              <div className="w-full px-1">
+              <div className="w-full">
                 <GoogleSignInButton
                   type="standard"
                   theme="filled_white"
@@ -216,39 +291,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-2.5 rounded-lg bg-[#201e1b] border border-[#2c2823] space-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full border border-[#d4af37] bg-[#2a241c] overflow-hidden flex items-center justify-center shrink-0">
-                  {user?.picture ? (
-                    <img
-                      src={user.picture}
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs">🥷</span>
-                  )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  onClick={promptGoogleSignIn}
+                  className="w-10 h-10 rounded-full border border-[#d4af37] bg-[#2a241c] flex items-center justify-center cursor-pointer mx-auto shadow-sm"
+                >
+                  <span className="text-base">🥷</span>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-white text-xs truncate">
-                    {user?.username ? `@${user.username}` : user?.name}
-                  </p>
-                  <p className="text-[10px] text-[#fcd34d] font-mono">
-                    Rating: {user?.rating}
-                  </p>
-                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">Sign In with Google</TooltipContent>
+            </Tooltip>
+          )
+        ) : !isCollapsed ? (
+          <div className="p-2.5 rounded-lg bg-[#201e1b] border border-[#2c2823] space-y-2">
+            <div className="flex items-center gap-2.5">
+              <Avatar className="w-8 h-8 border border-[#d4af37] bg-[#2a241c] shrink-0">
+                {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
+                <AvatarFallback className="bg-[#2a241c] text-xs">🥷</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-white text-xs truncate">
+                  {user?.username ? `@${user.username}` : user?.name}
+                </p>
+                <p className="text-[10px] text-[#fcd34d] font-mono">
+                  Rating: {user?.rating}
+                </p>
               </div>
-
-              <button
-                onClick={logout}
-                className="w-full py-1 text-[11px] rounded bg-[#262421] hover:bg-red-950/50 hover:text-red-300 text-[#8a857d] transition-colors cursor-pointer text-center"
-              >
-                Sign Out
-              </button>
             </div>
-          )}
-        </div>
-      </aside>
-    </>
+
+            <Button
+              onClick={logout}
+              variant="secondary"
+              size="sm"
+              className="w-full h-7 text-[11px] hover:bg-red-950/50 hover:text-red-300"
+            >
+              Sign Out
+            </Button>
+          </div>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex flex-col items-center gap-1 mx-auto py-1">
+                <Avatar className="w-9 h-9 border border-[#d4af37] bg-[#2a241c]">
+                  {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
+                  <AvatarFallback className="bg-[#2a241c] text-xs">🥷</AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={logout}
+                  className="p-1 text-muted-foreground hover:text-red-300 rounded cursor-pointer"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {user?.username ? `@${user.username}` : user?.name} ({user?.rating})
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </SidebarFooter>
+    </ShadcnSidebar>
   );
 };
