@@ -12,6 +12,8 @@ import {
   Clock,
   Shield,
   UserCheck,
+  Crown,
+
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFriends } from '../hooks/useFriends';
@@ -147,8 +149,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
         {/* Modal Header */}
         <DialogHeader className="px-5 py-4 border-b border-[#262421] bg-[#1a1815] text-left">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#262421] border border-[#d4af37]/40 flex items-center justify-center text-base shadow-inner">
-              👑
+            <div className="w-8 h-8 rounded-lg bg-[#262421] border border-[#d4af37]/40 flex items-center justify-center shadow-inner">
+              <Crown className="w-4 h-4 text-[#d4af37]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -221,8 +223,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                   </div>
                 ) : friends.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-12 h-12 rounded-full bg-[#201e1b] border border-[#2e2a24] flex items-center justify-center text-xl mb-3 text-[#8a857d]">
-                      🛡️
+                    <div className="w-10 h-10 rounded-full bg-[#201e1b] border border-[#2e2a24] flex items-center justify-center mb-3 text-[#8a857d]">
+                      <Shield className="w-5 h-5 text-[#8a857d]" />
                     </div>
                     <h3 className="text-sm font-semibold text-white mb-1">No Allies Yet</h3>
                     <p className="text-xs text-[#8a857d] max-w-xs mb-4">
@@ -250,9 +252,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         className="p-3 rounded-xl bg-[#201e1b] border border-[#2c2823] hover:border-[#3d3832] transition-colors flex items-center justify-between gap-3 shadow-sm"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="w-10 h-10 border border-[#d4af37]/60 bg-[#2a241c] shrink-0">
+                          <Avatar className="w-9 h-9 border border-[#d4af37]/60 bg-[#2a241c] shrink-0">
                             {friend.picture && <AvatarImage src={friend.picture} alt={friend.name} />}
-                            <AvatarFallback className="bg-[#2a241c] text-sm">🥷</AvatarFallback>
+                            <AvatarFallback className="bg-[#2a241c] text-xs font-semibold text-[#d4af37]">
+                              {friend.name ? friend.name.charAt(0).toUpperCase() : 'U'}
+                            </AvatarFallback>
                           </Avatar>
 
                           <div className="min-w-0">
@@ -336,7 +340,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               {req.sender?.picture && (
                                 <AvatarImage src={req.sender.picture} alt={req.sender.name} />
                               )}
-                              <AvatarFallback className="bg-[#2a241c] text-xs">🥷</AvatarFallback>
+                              <AvatarFallback className="bg-[#2a241c] text-xs font-semibold text-[#d4af37]">
+                                {req.sender?.name ? req.sender.name.charAt(0).toUpperCase() : 'U'}
+                              </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
                               <p className="font-semibold text-white text-xs truncate">
@@ -405,7 +411,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                               {req.receiver?.picture && (
                                 <AvatarImage src={req.receiver.picture} alt={req.receiver.name} />
                               )}
-                              <AvatarFallback className="bg-[#22201d] text-xs">🥷</AvatarFallback>
+                              <AvatarFallback className="bg-[#22201d] text-xs font-semibold text-[#baa994]">
+                                {req.receiver?.name ? req.receiver.name.charAt(0).toUpperCase() : 'U'}
+                              </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
                               <p className="font-medium text-white text-xs truncate">
@@ -473,11 +481,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         className="p-3 rounded-xl bg-[#201e1b] border border-[#2c2823] flex items-center justify-between gap-3 shadow-sm"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="w-10 h-10 border border-[#d4af37]/60 bg-[#2a241c] shrink-0">
+                          <Avatar className="w-9 h-9 border border-[#d4af37]/60 bg-[#2a241c] shrink-0">
                             {player.picture && (
                               <AvatarImage src={player.picture} alt={player.name} />
                             )}
-                            <AvatarFallback className="bg-[#2a241c] text-sm">🥷</AvatarFallback>
+                            <AvatarFallback className="bg-[#2a241c] text-xs font-semibold text-[#d4af37]">
+                              {player.name ? player.name.charAt(0).toUpperCase() : 'U'}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
                             <p className="font-semibold text-white text-xs truncate">

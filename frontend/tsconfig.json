@@ -2,7 +2,9 @@
   "files": [],
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@sounds/*": ["./src/sounds/*"],
+      "@sounds": ["./src/sounds/index.ts"]
     }
   },
   "references": [

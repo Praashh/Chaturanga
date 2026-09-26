@@ -13,6 +13,8 @@ interface TopBarProps {
   onToggleMobileMenu?: () => void;
   isMuted: boolean;
   onToggleMute: () => void;
+  soundTheme?: 'vedic' | 'classic';
+  onToggleSoundTheme?: () => void;
   onOpenSettings: () => void;
   onOpenFriends?: () => void;
   friendsCount?: number;
@@ -22,6 +24,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMobileMenu,
   isMuted,
   onToggleMute,
+  soundTheme = 'vedic',
+  onToggleSoundTheme,
   onOpenSettings,
   onOpenFriends,
   friendsCount,
@@ -77,6 +81,25 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Friends & Allies</TooltipContent>
+            </Tooltip>
+          )}
+
+          {onToggleSoundTheme && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleSoundTheme}
+                  className="h-8 px-2 text-[11px] font-mono gap-1 text-[#d4af37] hover:text-[#fcd34d] hover:bg-[#262421] hidden sm:inline-flex"
+                  aria-label="Toggle Sound Atmosphere"
+                >
+                  <span>{soundTheme === 'vedic' ? 'Vedic SFX' : 'Classic SFX'}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Switch Audio: {soundTheme === 'vedic' ? 'Vedic War SFX (Shankha & Dundubhi)' : 'Classic Hardwood'}
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -142,9 +165,9 @@ export const TopBar: React.FC<TopBarProps> = ({
               <TooltipTrigger asChild>
                 <div
                   onClick={promptGoogleSignIn}
-                  className="w-8 h-8 rounded-full border-2 border-[#d4af37] bg-[#2a241c] overflow-hidden flex items-center justify-center cursor-pointer shadow-sm hover:border-[#fcd34d] transition-colors"
+                  className="w-8 h-8 rounded-full border border-[#d4af37]/70 bg-[#2a241c] overflow-hidden flex items-center justify-center cursor-pointer shadow-sm hover:border-[#d4af37] transition-colors"
                 >
-                  <span className="text-sm">🥷</span>
+                  <UserIcon className="w-4 h-4 text-[#d4af37]" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom">

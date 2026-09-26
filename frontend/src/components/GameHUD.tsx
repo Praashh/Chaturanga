@@ -158,7 +158,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* Check & Game Over Alert Banner */}
       {status.type !== 'active' ? (
-        <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-600/30 via-[#d4af37]/40 to-amber-600/30 border border-[#d4af37] text-center animate-bounce shadow-lg">
+        <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-600/30 via-[#d4af37]/40 to-amber-600/30 border border-[#d4af37] text-center shadow-lg">
           <div className="text-base font-serif font-bold text-amber-100 uppercase tracking-widest">
             {status.type === 'checkmate' && `👑 Checkmate! ${status.winner.toUpperCase()} IS VICTORIOUS!`}
             {status.type === 'bare_king' && `⚔️ Bare King Triumph! ${status.winner.toUpperCase()} CONQUERS!`}

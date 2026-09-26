@@ -10,6 +10,7 @@ import {
   GraduationCap,
   HelpCircle,
   LogOut,
+  Zap,
 } from 'lucide-react';
 import type { GameMode } from '../types/game';
 import { useAuth } from '../context/AuthContext';
@@ -100,8 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {/* Quick Match Action */}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  variant="gold"
-                  tooltip="Quick Match (1v1 Online)"
+                  tooltip="Play Online (1v1 Live Match)"
                   onClick={() => {
                     if (!isAuthenticated) {
                       promptGoogleSignIn();
@@ -110,11 +110,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onFindMatch?.();
                     if (isMobile) setOpenMobile(false);
                   }}
-                  className="mb-1.5 h-9"
+                  className="mb-2 h-9 bg-[#231f18] hover:bg-[#2c261e] border border-[#3c3325] hover:border-[#d4af37]/60 text-[#e8e2d8] hover:text-white transition-all shadow-xs"
                 >
-                  <span className="text-sm shrink-0">⚡</span>
+                  <Zap className="w-4 h-4 text-[#d4af37] shrink-0" />
                   {!isCollapsed && (
-                    <span className="font-semibold text-xs tracking-wide">Quick Match</span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-semibold text-xs tracking-wide">Play Online</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#181613] text-[#d4af37] border border-[#3e3525]">1v1</span>
+                    </div>
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -295,9 +298,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <TooltipTrigger asChild>
                 <div
                   onClick={promptGoogleSignIn}
-                  className="w-10 h-10 rounded-full border border-[#d4af37] bg-[#2a241c] flex items-center justify-center cursor-pointer mx-auto shadow-sm"
+                  className="w-10 h-10 rounded-full border border-[#d4af37]/60 bg-[#2a241c] flex items-center justify-center cursor-pointer mx-auto shadow-sm hover:border-[#d4af37] transition-colors"
                 >
-                  <span className="text-base">🥷</span>
+                  <User className="w-5 h-5 text-[#d4af37]" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right">Sign In with Google</TooltipContent>
@@ -306,9 +309,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : !isCollapsed ? (
           <div className="p-2.5 rounded-lg bg-[#201e1b] border border-[#2c2823] space-y-2">
             <div className="flex items-center gap-2.5">
-              <Avatar className="w-8 h-8 border border-[#d4af37] bg-[#2a241c] shrink-0">
+              <Avatar className="w-8 h-8 border border-[#d4af37]/70 bg-[#2a241c] shrink-0">
                 {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
-                <AvatarFallback className="bg-[#2a241c] text-xs">🥷</AvatarFallback>
+                <AvatarFallback className="bg-[#2a241c] text-xs font-semibold text-[#d4af37]">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : <User className="w-3.5 h-3.5 text-[#8a857d]" />}
+                </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-white text-xs truncate">
@@ -333,9 +338,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex flex-col items-center gap-1 mx-auto py-1">
-                <Avatar className="w-9 h-9 border border-[#d4af37] bg-[#2a241c]">
+                <Avatar className="w-9 h-9 border border-[#d4af37]/70 bg-[#2a241c]">
                   {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
-                  <AvatarFallback className="bg-[#2a241c] text-xs">🥷</AvatarFallback>
+                  <AvatarFallback className="bg-[#2a241c] text-xs font-semibold text-[#d4af37]">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : <User className="w-4 h-4 text-[#8a857d]" />}
+                  </AvatarFallback>
                 </Avatar>
                 <button
                   onClick={logout}

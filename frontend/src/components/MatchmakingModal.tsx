@@ -132,33 +132,24 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
         {/* ----------------- STATE 1: SEARCHING ----------------- */}
         {!isMatched ? (
           <>
-            {/* Chess.com Animated Radar Scanner */}
-            <div className="relative w-28 h-28 flex items-center justify-center my-3">
-              {/* Concentric pulsing radar waves */}
-              <div className="absolute inset-0 rounded-full border border-[#d4af37]/20 animate-ping duration-1000 opacity-60" />
-              <div className="absolute inset-2 rounded-full border border-[#d4af37]/30 animate-pulse duration-700" />
-              <div className="absolute inset-5 rounded-full border border-[#d4af37]/40" />
-
-              {/* Rotating radar sweep beam */}
-              <div className="absolute inset-0 rounded-full animate-spin [animation-duration:3s]">
-                <div className="w-1/2 h-1/2 bg-gradient-to-br from-[#d4af37]/35 to-transparent rounded-tl-full origin-bottom-right" />
-              </div>
-
-              {/* Center Emblem */}
-              <div className="relative w-16 h-16 rounded-full bg-[#201d19] border-2 border-[#d4af37]/70 flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.35)] z-10">
-                <Swords className="w-7 h-7 text-[#fcd34d] animate-pulse" />
+            {/* Clean Matchmaking Radar Indicator */}
+            <div className="relative w-24 h-24 flex items-center justify-center my-4">
+              <div className="absolute inset-0 rounded-full border border-[#3e3527]" />
+              <div className="absolute inset-3 rounded-full border border-[#d4af37]/30" />
+              <div className="w-14 h-14 rounded-full bg-[#1e1b17] border border-[#d4af37]/60 flex items-center justify-center shadow-lg">
+                <Swords className="w-6 h-6 text-[#d4af37]" />
               </div>
             </div>
 
             {/* Title & Status */}
             <h3 className="font-serif font-bold text-xl text-white tracking-wide mt-1">
-              Searching for Opponent...
+              Finding Opponent...
             </h3>
             <p className="text-xs text-[#9c9589] mt-1 max-w-xs">
               Matching with a player of equal prowess across the realm.
             </p>
 
-            {/* Chess.com Expanding Dynamic Rating Bracket */}
+            {/* Expanding Dynamic Rating Bracket */}
             <div className="w-full mt-4 p-3 rounded-xl bg-[#201d18] border border-[#302a22]">
               <div className="flex items-center justify-between text-[11px] font-medium text-[#baa994] mb-1.5">
                 <span className="flex items-center gap-1">
@@ -173,7 +164,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
               {/* Dynamic Range Bar */}
               <div className="w-full h-1.5 rounded-full bg-[#2a2620] overflow-hidden relative">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 rounded-full transition-all duration-700"
+                  className="h-full bg-[#d4af37] rounded-full transition-all duration-700"
                   style={{ width: `${ratingSpreadPercent}%`, margin: '0 auto' }}
                 />
               </div>
@@ -192,7 +183,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
                 <span className="font-semibold">{formatTime(seconds)}</span>
               </div>
               <div className="flex items-center gap-1.5 text-emerald-400 text-[11px]">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Queue Active (Avg: &lt;10s)</span>
               </div>
             </div>
@@ -215,7 +206,7 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
                 </div>
               </div>
 
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-medium text-emerald-300">
+              <span className="px-2 py-0.5 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 text-[10px] font-mono text-[#fcd34d]">
                 Searching
               </span>
             </div>
@@ -243,9 +234,9 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
           /* ----------------- STATE 2: MATCH FOUND (CHESS.COM REVEAL) ----------------- */
           <div className="w-full flex flex-col items-center animate-in zoom-in-95 duration-200">
             {/* Top Match Found Banner */}
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-bold text-sm tracking-wider uppercase mb-4 animate-bounce">
+            <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono text-xs tracking-wider uppercase mb-4">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Match Found!</span>
+              <span>Match Found</span>
             </div>
 
             <h3 className="font-serif font-extrabold text-2xl text-white tracking-wide mb-1">
@@ -286,9 +277,9 @@ export const MatchmakingModal: React.FC<MatchmakingModalProps> = ({
                 </span>
               </div>
 
-              {/* Center: Radiant VS Shield */}
+              {/* Center: Classical VS Badge */}
               <div className="flex flex-col items-center justify-center px-1">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#d4af37] to-amber-700 flex items-center justify-center text-white font-black text-sm shadow-[0_0_15px_rgba(212,175,55,0.4)] animate-pulse">
+                <div className="w-8 h-8 rounded-full bg-[#2a241b] border border-[#d4af37]/50 flex items-center justify-center text-[#fcd34d] font-serif font-bold text-xs shadow-inner">
                   VS
                 </div>
               </div>

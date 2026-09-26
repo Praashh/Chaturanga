@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Bot, Globe, Shuffle } from 'lucide-react';
+import { Users, Bot, Globe, Shuffle, Swords } from 'lucide-react';
 import type { GameMode, AIDifficulty, PieceColor } from '../types/game';
 import { generateRoomId } from '../utils/roomUrl';
 import { useAuth } from '../context/AuthContext';
@@ -213,17 +213,19 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
             {/* ONLINE */}
             <TabsContent value="online" className="mt-0 space-y-3.5">
               {/* Quick Matchmaking Section */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-b from-[#25221d] to-[#1e1c18] border border-[#3d372d] flex flex-col gap-2.5">
+              <div className="p-3.5 rounded-xl bg-[#201d18] border border-[#352e24] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">⚡</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#27221b] border border-[#40372a] flex items-center justify-center shrink-0">
+                      <Swords className="w-4 h-4 text-[#d4af37]" />
+                    </div>
                     <div>
-                      <h4 className="text-xs font-semibold text-white">Quick Match</h4>
-                      <p className="text-[10px] text-[#8a857d]">Automatically pair with any waiting player</p>
+                      <h4 className="text-xs font-semibold text-white">Live Matchmaking</h4>
+                      <p className="text-[10px] text-[#8a857d]">Pair automatically with an active opponent</p>
                     </div>
                   </div>
-                  <Badge variant="emerald" className="font-medium text-[10px]">
-                    1v1 Online
+                  <Badge variant="gold" className="font-mono text-[9px] uppercase tracking-wider">
+                    Live 1v1
                   </Badge>
                 </div>
 
@@ -240,10 +242,10 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
                       onFindMatch();
                     }
                   }}
-                  className="w-full h-10 font-bold"
+                  className="w-full h-10 font-semibold tracking-wide flex items-center justify-center gap-2"
                 >
-                  <span>⚡</span>
-                  <span>Find Match Now</span>
+                  <Swords className="w-4 h-4" />
+                  <span>Find 1v1 Match</span>
                 </Button>
               </div>
 

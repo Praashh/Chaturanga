@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, UserPlus, UserCheck, Clock, X, Swords } from 'lucide-react';
+import { User, UserPlus, UserCheck, Clock, X, Loader2 } from 'lucide-react';
 import type { Piece } from '../types/game';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -59,48 +59,46 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const bracket = Math.min(300, 50 + Math.floor(searchDuration / 3) * 30);
   const minRating = Math.max(100, targetRating - bracket);
   const maxRating = targetRating + bracket;
+  const initial = (username || name || 'W').trim().charAt(0).toUpperCase();
 
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        className={`w-full flex items-center justify-between h-11 sm:h-12 px-2.5 sm:px-3 rounded-lg border transition-all duration-300 select-none backdrop-blur-sm ${
+        className={`w-full flex items-center justify-between h-11 sm:h-12 px-2.5 sm:px-3 rounded-lg border transition-all duration-200 select-none backdrop-blur-sm ${
           isSearching
-            ? 'bg-[#221f1a]/95 border-[#d4af37]/40 shadow-[0_0_16px_rgba(212,175,55,0.12)]'
+            ? 'bg-[#1c1915] border-[#3d362a] shadow-inner'
             : isMatchJustFound
-            ? 'bg-emerald-950/40 border-emerald-500/60 shadow-[0_0_16px_rgba(52,211,153,0.2)]'
+            ? 'bg-emerald-950/30 border-emerald-500/50 shadow-sm'
             : isActiveTurn
-            ? 'bg-[#24201a] border-[#d4af37]/60 shadow-[0_0_12px_rgba(212,175,55,0.15)]'
-            : 'bg-[#1a1815]/90 border-[#2a2620] shadow-sm'
+            ? 'bg-[#221f18] border-[#443a28] border-l-[3px] border-l-[#d4af37] shadow-sm'
+            : 'bg-[#181613] border-[#29251f] shadow-sm'
         }`}
       >
         {/* Left: Avatar + Identity */}
         <div className="flex items-center gap-2.5 min-w-0">
           {/* Profile Avatar */}
           {isSearching ? (
-            <div className="relative w-8 h-8 rounded-full bg-[#1b1916] border border-[#d4af37]/50 flex items-center justify-center overflow-hidden shadow-[0_0_12px_rgba(212,175,55,0.25)] shrink-0">
-              <div className="absolute inset-0 rounded-full animate-spin [animation-duration:2.2s] bg-[conic-gradient(from_0deg,transparent_0_280deg,rgba(212,175,55,0.85)_360deg)]" />
-              <div className="absolute inset-[2px] rounded-full bg-[#191714] flex items-center justify-center">
-                <Swords className="w-3.5 h-3.5 text-[#fcd34d] animate-pulse" />
-              </div>
+            <div className="w-8 h-8 rounded-full bg-[#1e1b17] border border-[#3e3527] flex items-center justify-center shrink-0">
+              <Loader2 className="w-3.5 h-3.5 text-[#d4af37] animate-spin" />
             </div>
           ) : (
             <Avatar
               className={`w-8 h-8 border ${
                 isMatchJustFound
-                  ? 'border-emerald-400 ring-2 ring-emerald-500/50 animate-pulse'
+                  ? 'border-emerald-400 ring-1 ring-emerald-500/40'
                   : isActiveTurn
-                  ? 'border-[#d4af37]'
-                  : 'border-[#3d3832]'
-              } bg-[#2a2824] shrink-0 transition-all duration-200`}
+                  ? 'border-[#d4af37]/80 ring-1 ring-[#d4af37]/30'
+                  : 'border-[#38332a]'
+              } bg-[#23201b] shrink-0 transition-all duration-200`}
             >
               {avatarUrl && <AvatarImage src={avatarUrl} alt={name} className="object-cover" />}
-              <AvatarFallback className="bg-[#2a2824] text-xs">
+              <AvatarFallback className="bg-[#23201b] text-xs font-semibold text-[#d4af37]">
                 {avatarIcon ? (
-                  <span className="text-base">{avatarIcon}</span>
-                ) : isSelf ? (
-                  <span className="text-base">🥷</span>
+                  <span className="text-sm">{avatarIcon}</span>
+                ) : initial ? (
+                  <span>{initial}</span>
                 ) : (
-                  <User className="w-4 h-4 text-[#8a857d]" />
+                  <User className="w-3.5 h-3.5 text-[#8a857d]" />
                 )}
               </AvatarFallback>
             </Avatar>
@@ -110,29 +108,23 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
           {isSearching ? (
             <div className="flex flex-col text-left min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
-                <span className="text-xs font-semibold text-amber-200 tracking-wide animate-pulse truncate">
-                  Searching for Opponent...
+                <span className="text-xs font-medium text-[#f0ebe1] tracking-wide truncate">
+                  Finding Opponent
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-[10px] text-[#8a857d] font-mono">
-                <span className="text-amber-400/90 font-medium">
-                  {minRating}–{maxRating}
-                </span>
-                <span className="text-[#6d665b]">•</span>
-                <span className="flex items-center gap-0.5 text-[#baa994]">
-                  <Clock className="w-3 h-3 text-[#fcd34d]" />
-                  <span>{formatTime(searchDuration)}</span>
-                </span>
+              <div className="flex items-center gap-1.5 text-[10px] text-[#8a857d] font-mono">
+                <span className="text-[#c2b6a3]">{minRating}–{maxRating}</span>
+                <span className="text-[#555]">•</span>
+                <span className="text-[#8a857d]">{formatTime(searchDuration)}</span>
               </div>
             </div>
           ) : (
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-[#e3ded7] truncate">
-                {isSelf && countryFlag && <span className="shrink-0">{countryFlag}</span>}
+                {isSelf && countryFlag && <span className="shrink-0 text-xs">{countryFlag}</span>}
                 <span className="truncate">{username || name}</span>
                 {(ratingAfter !== undefined || rating !== undefined) && (
-                  <span className="text-[#d4af37] font-bold font-mono text-[11px] shrink-0">
+                  <span className="text-[#c8a032] font-semibold font-mono text-[11px] shrink-0">
                     ({Math.round(ratingAfter ?? rating!)})
                   </span>
                 )}
@@ -145,8 +137,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                   </Badge>
                 )}
                 {isMatchJustFound && (
-                  <Badge variant="emerald" className="text-[9px] uppercase tracking-wider animate-bounce ml-1 shrink-0">
-                    Match Found!
+                  <Badge variant="emerald" className="text-[9px] uppercase tracking-wider font-mono ml-1 shrink-0">
+                    Match Found
                   </Badge>
                 )}
                 {!isSelf && onAddFriend && (
@@ -210,21 +202,21 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         {/* Right: Cancel button if searching, or Active turn indicator */}
         {isSearching && onCancelSearch ? (
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
             onClick={e => {
               e.stopPropagation();
               onCancelSearch();
             }}
-            className="h-7 px-2.5 text-[11px] gap-1 hover:bg-red-950/40 hover:text-red-300 border-[#3b3428] shrink-0"
+            className="h-7 px-2 text-[11px] text-[#8a857d] hover:text-white hover:bg-[#29241e] border border-[#352f25] shrink-0"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3 h-3 mr-1" />
             <span>Cancel</span>
           </Button>
         ) : isActiveTurn ? (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-[10px] text-emerald-400 font-semibold shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Active Turn</span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#d4af37]/10 border border-[#d4af37]/30 text-[10px] font-mono tracking-wider font-semibold text-[#fcd34d] shrink-0 uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37]" />
+            <span>To Move</span>
           </div>
         ) : null}
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Piece, PieceColor, SquareCoord, Move } from '../types/game';
+import { isAshtapadaMark } from '../types/game';
 import { PieceIcon } from './PieceIcon';
 
 interface AshtapadaBoardProps {
@@ -59,6 +60,7 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
   const isLegalTarget = (c: number, r: number) => {
     return legalMoves.some(m => m.col === c && m.row === r);
   };
+
 
   const isSelected = (c: number, r: number) => {
     return selectedSquare?.col === c && selectedSquare?.row === r;
@@ -276,14 +278,29 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                   onDragStart={e => e.preventDefault()}
                   className={`relative flex items-center justify-center select-none transition-colors duration-100 ${baseBg} ${cursorStyle}`}
                 >
+                  {/* Sacred Ashtāpada Classical Inlay Marking (16 sacred squares) */}
+                  {isAshtapadaMark(col, row) && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-1.5 opacity-30 select-none z-0">
+                      <svg viewBox="0 0 100 100" className="w-full h-full text-amber-950 dark:text-[#d4af37]">
+                        {/* Diagonal crossed rays */}
+                        <line x1="12" y1="12" x2="88" y2="88" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <line x1="88" y1="12" x2="12" y2="88" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        {/* Corner gateway brackets */}
+                        <path d="M12 24 L12 12 L24 12 M76 12 L88 12 L88 24 M88 76 L88 88 L76 88 M24 88 L12 88 L12 76" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        {/* Sacred central diamond */}
+                        <polygon points="50,42 58,50 50,58 42,50" fill="none" stroke="currentColor" strokeWidth="2" />
+                      </svg>
+                    </div>
+                  )}
+
                   {/* Selected Square Highlight (Classic clean yellow-gold tile overlay) */}
                   {selected && (
-                    <div className="absolute inset-0 bg-[#f59e0b]/35 pointer-events-none" />
+                    <div className="absolute inset-0 bg-[#f59e0b]/35 pointer-events-none z-10" />
                   )}
 
                   {/* Previous Move Source square highlight */}
                   {isMoveFrom && !selected && (
-                    <div className="absolute inset-0 bg-[#d97706]/25 pointer-events-none" />
+                    <div className="absolute inset-0 bg-[#d97706]/25 pointer-events-none z-10" />
                   )}
 
                   {/* Previous Move Destination highlight: Bold Neon Green Ring */}
@@ -293,6 +310,7 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                     </div>
                   )}
 
+
                   {/* Drag Hover Target Glow Highlight */}
                   {isHoveredTarget && (
                     <div className="absolute inset-0 bg-[#84cc16]/30 border-2 border-[#84cc16] shadow-[inset_0_0_12px_rgba(132,204,22,0.5)] z-30 pointer-events-none" />
@@ -301,14 +319,14 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                   {/* Coordinates inside corners */}
                   {col === (isFlipped ? 7 : 0) && (
                     <span
-                      className={`absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none ${labelColor}`}
+                      className={`absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none z-10 ${labelColor}`}
                     >
                       {row + 1}
                     </span>
                   )}
                   {row === (isFlipped ? 7 : 0) && (
                     <span
-                      className={`absolute bottom-0.5 right-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none lowercase ${labelColor}`}
+                      className={`absolute bottom-0.5 right-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none lowercase z-10 ${labelColor}`}
                     >
                       {String.fromCharCode(97 + col)}
                     </span>
@@ -327,15 +345,18 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                     </div>
                   )}
 
-                  {/* Attacked or Fallen King Crimson Glow */}
+                  {/* Attacked or Fallen King Crimson Glow & Threat Mandala */}
                   {(isFallenKing || isCheckKing) && (
-                    <div
-                      className="absolute inset-0 pointer-events-none z-10 animate-pulse"
-                      style={{
-                        background:
-                          'radial-gradient(circle, rgba(239, 68, 68, 0.85) 0%, rgba(220, 38, 38, 0.35) 60%, transparent 85%)',
-                      }}
-                    />
+                    <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center animate-pulse">
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background:
+                            'radial-gradient(circle, rgba(239, 68, 68, 0.85) 0%, rgba(220, 38, 38, 0.35) 60%, transparent 85%)',
+                        }}
+                      />
+                      <div className="w-[110%] h-[110%] rounded-full border border-red-500/60 animate-spin [animation-duration:9s] opacity-70" />
+                    </div>
                   )}
 
                   {/* The Piece */}

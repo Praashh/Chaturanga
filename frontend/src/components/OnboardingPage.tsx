@@ -187,7 +187,9 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
             <div className="relative inline-block">
               <Avatar className="w-20 h-20 border-2 border-[#d4af37] p-0.5 shadow-xl bg-[#26221c] mx-auto">
                 {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
-                <AvatarFallback className="bg-[#26221c] text-3xl">🥷</AvatarFallback>
+                <AvatarFallback className="bg-[#26221c] text-3xl font-serif text-[#d4af37]">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
+                </AvatarFallback>
               </Avatar>
               <div className="absolute -bottom-1 -right-1 bg-[#1a1815] border border-[#d4af37] rounded-full p-1 text-[#fcd34d]" title="Verified Warrior">
                 <ShieldCheck className="w-4 h-4" />

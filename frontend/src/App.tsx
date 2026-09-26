@@ -7,6 +7,7 @@ import { GamePanel } from './components/GamePanel';
 import { RulesModal } from './components/RulesModal';
 import { LobbyModal } from './components/LobbyModal';
 import { FriendsModal } from './components/FriendsModal';
+import { SanskritCombatBanner } from './components/SanskritCombatBanner';
 import { OnboardingPage } from './components/OnboardingPage';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -84,6 +85,8 @@ function ChaturangaApp() {
     aiDifficulty,
     playerColor,
     isMuted,
+    soundTheme,
+    toggleSoundTheme,
     onlineRoomId,
     onlinePlayerName,
     socket,
@@ -364,6 +367,8 @@ function ChaturangaApp() {
           <TopBar
             isMuted={isMuted}
             onToggleMute={toggleMute}
+            soundTheme={soundTheme}
+            onToggleSoundTheme={toggleSoundTheme}
             onOpenSettings={() => setIsRulesOpen(true)}
             onOpenFriends={() => setIsFriendsOpen(true)}
             friendsCount={friends.friendsCount}
@@ -439,7 +444,7 @@ function ChaturangaApp() {
               avatarUrl={socket.matchedOpponent?.opponentPicture}
               capturedPieces={playerColor === 'white' ? capturedBlack : capturedWhite}
               materialAdvantage={playerColor === 'white' ? materialAdvantageBlack : materialAdvantageWhite}
-              isActiveTurn={turn !== playerColor}
+              isActiveTurn={status.type === 'active' && turn !== playerColor}
               isSearching={socket.isSearching}
               searchDuration={searchSeconds}
               targetRating={user?.rating ?? 1500}
@@ -466,6 +471,13 @@ function ChaturangaApp() {
                     : 'none'
                   : undefined
               }
+            />
+
+            {/* Sanskrit Milestone Combat Banner (Placed safely outside the board squares) */}
+            <SanskritCombatBanner
+              inCheck={inCheck}
+              status={status}
+              lastMoveIsPromotion={Boolean(lastMove?.promotion)}
             />
 
             {/* The 8x8 Ashtāpada Board matching reference */}
@@ -534,12 +546,11 @@ function ChaturangaApp() {
               ratingDelta={mode === 'online' ? socket.ratingSettlement?.ratingChange : undefined}
               ratingAfter={mode === 'online' ? socket.ratingSettlement?.ratingAfter : undefined}
               avatarUrl={user?.picture}
-              avatarIcon={!user ? '👑' : undefined}
               countryFlag={user ? '🇮🇳' : undefined}
               isSelf={true}
               capturedPieces={playerColor === 'white' ? capturedWhite : capturedBlack}
               materialAdvantage={playerColor === 'white' ? materialAdvantageWhite : materialAdvantageBlack}
-              isActiveTurn={isAuthenticated && turn === playerColor}
+              isActiveTurn={status.type === 'active' && isAuthenticated && turn === playerColor}
             />
           </div>
 

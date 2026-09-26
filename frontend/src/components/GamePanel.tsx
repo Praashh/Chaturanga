@@ -108,18 +108,18 @@ export const GamePanel: React.FC<GamePanelProps> = ({
   const getPieceSymbol = (type: string) => {
     switch (type) {
       case 'ratha':
-        return '🛞';
+        return '♖';
       case 'gaja':
-        return '🐘';
+        return '♗';
       case 'ashva':
-        return '♞';
+        return '♘';
       case 'mantri':
-        return '🧙';
+        return '♕';
       case 'raja':
-        return '👑';
+        return '♔';
       case 'padati':
       default:
-        return '♟';
+        return '♙';
     }
   };
 
@@ -139,7 +139,7 @@ export const GamePanel: React.FC<GamePanelProps> = ({
     if (status.type === 'stalemate') {
       return 'DRAW BY STALEMATE';
     }
-    return `${turn === 'white' ? 'White' : 'Black'} to move`;
+    return `${turn.toUpperCase()} TO MOVE`;
   };
 
   const isGameOver = status.type !== 'active';
@@ -238,24 +238,20 @@ export const GamePanel: React.FC<GamePanelProps> = ({
         {/* Matchmaking Queue Search State vs Game Moves Chronicle */}
         {isSearching ? (
           <div className="flex-1 flex flex-col items-center justify-center p-5 text-center select-none">
-            <div className="relative w-16 h-16 flex items-center justify-center mb-3">
-              <div className="absolute inset-0 rounded-full border border-[#d4af37]/20 animate-ping duration-1000" />
-              <div className="absolute inset-2 rounded-full border border-[#d4af37]/40 animate-pulse" />
-              <div className="w-10 h-10 rounded-full bg-[#201d19] border border-[#d4af37]/60 flex items-center justify-center shadow-lg">
-                <Swords className="w-5 h-5 text-[#fcd34d] animate-pulse" />
-              </div>
+            <div className="w-12 h-12 rounded-full bg-[#1e1b17] border border-[#3e3527] flex items-center justify-center mb-3">
+              <Swords className="w-5 h-5 text-[#d4af37]" />
             </div>
 
             <h4 className="font-serif font-bold text-white text-sm tracking-wide">
-              Searching for Opponent...
+              Finding Opponent...
             </h4>
             <p className="text-[11px] text-[#8a857d] mt-1 max-w-[220px] leading-relaxed">
-              Seeking a worthy warrior of similar rating across the Ashtāpada realm.
+              Matching with a player of equal prowess across the Ashtāpada realm.
             </p>
 
-            <Badge variant="gold" className="mt-3 px-3 py-1 font-mono font-semibold text-xs">
-              ⏱ {formatTime(searchDuration)}
-            </Badge>
+            <div className="mt-3 px-3 py-1 rounded bg-[#24201a] border border-[#383125] font-mono text-xs text-[#baa994]">
+              Elapsed: {formatTime(searchDuration)}
+            </div>
 
             <div className="w-full mt-4 p-3 rounded-lg bg-[#201d19] border border-[#2e2922] text-[11px]">
               <div className="flex items-center justify-between text-[#baa994] font-medium mb-1.5">
@@ -264,7 +260,7 @@ export const GamePanel: React.FC<GamePanelProps> = ({
               </div>
               <div className="w-full h-1.5 rounded-full bg-[#2c2720] overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-600 to-yellow-400 rounded-full transition-all duration-700"
+                  className="h-full bg-[#d4af37] rounded-full transition-all duration-700"
                   style={{ width: `${Math.min(100, 25 + (searchDuration / 15) * 75)}%`, margin: '0 auto' }}
                 />
               </div>
@@ -297,11 +293,22 @@ export const GamePanel: React.FC<GamePanelProps> = ({
             <div
               className={`w-full py-2 px-3 text-center text-xs font-semibold tracking-wide border-b border-[#262421] ${
                 isGameOver
-                  ? 'bg-[#3b2b1a] text-[#fcd34d]'
-                  : 'bg-[#201e1b] text-[#d4cfc7]'
+                  ? 'bg-[#352717] text-[#fcd34d]'
+                  : 'bg-[#1b1916] text-[#d4cfc7]'
               }`}
             >
-              <div>{getStatusBannerText()}</div>
+              <div className="flex items-center justify-center gap-2">
+                {!isGameOver && (
+                  <span
+                    className={`w-2 h-2 rounded-full border ${
+                      turn === 'white'
+                        ? 'bg-[#f0ebe1] border-[#d4af37]'
+                        : 'bg-[#161412] border-[#555]'
+                    }`}
+                  />
+                )}
+                <span className="font-mono text-[11px] uppercase tracking-wider">{getStatusBannerText()}</span>
+              </div>
               {isGameOver && ratingSettlement && (
                 <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-mono">
                   <span className="text-[#a89f91]">Rating:</span>

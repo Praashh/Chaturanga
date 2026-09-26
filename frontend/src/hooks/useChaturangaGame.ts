@@ -17,7 +17,7 @@ import {
   isKingInCheck,
 } from '../engine/rules';
 import { getBestMove } from '../engine/ai';
-import { useAudio } from './useAudio';
+import { useAudio } from '@sounds';
 import { useChaturangaSocket } from './useChaturangaSocket';
 import { updateGameRoomUrl } from '../utils/roomUrl';
 
@@ -66,14 +66,16 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
   const {
     isMuted,
     toggleMute,
-    playMove,
-    playOpponentMove,
+    soundTheme,
+    toggleSoundTheme,
+    playPieceMove,
     playCapture,
     playCheck,
     playGameStart,
     playGameEnd,
     playIllegal,
     playNotify,
+    playPromote,
   } = useAudio();
 
   const inCheck = status.type === 'active' ? (isKingInCheck(board, turn) ? turn : null) : null;
@@ -102,8 +104,10 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
             setCapturedBlack(prev => [...prev, moveRecord.captured!]);
           }
           playCapture();
+        } else if (moveRecord.promotion) {
+          playPromote();
         } else {
-          playOpponentMove();
+          playPieceMove(moveRecord.piece.type, true);
         }
 
         setTurn(nextTurn);
@@ -122,7 +126,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         return newBoard;
       });
     },
-    [playCapture, playOpponentMove, playGameEnd, playCheck]
+    [playCapture, playPromote, playPieceMove, playGameEnd, playCheck]
   );
 
   // Restart / Reset game
@@ -224,10 +228,10 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
           setCapturedBlack(prev => [...prev, moveRecord.captured!]);
         }
         playCapture();
-      } else if (isOpponent) {
-        playOpponentMove();
+      } else if (moveRecord.promotion) {
+        playPromote();
       } else {
-        playMove();
+        playPieceMove(moveRecord.piece.type, isOpponent);
       }
 
       setBoard(newBoard);
@@ -238,7 +242,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       setSelectedSquare(null);
       setLegalMoves([]);
 
-      // Check / Game Over triggers (No confetti)
+      // Check / Game Over triggers
       if (newStatus.type !== 'active') {
         playGameEnd();
       } else if (isKingInCheck(newBoard, nextTurn)) {
@@ -250,7 +254,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         socket.sendMove(from, to);
       }
     },
-    [isAuthenticated, board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playMove, playOpponentMove, playGameEnd, playCheck, mode, playerColor, socket]
+    [isAuthenticated, board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playPromote, playPieceMove, playGameEnd, playCheck, mode, playerColor, socket]
   );
 
   // Handle Square Selection and Clicking
@@ -414,6 +418,8 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     undoMove,
     flipBoard,
     toggleMute,
+    soundTheme,
+    toggleSoundTheme,
     playGameStart,
     playGameEnd,
     playIllegal,
