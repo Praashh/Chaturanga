@@ -45,15 +45,17 @@ const AshtapadaInlay: React.FC = () => (
 
 const SquareHighlights: React.FC<{ state: SquareVisualState }> = ({ state }) => (
   <>
-    {state.isSelected && <div className="absolute inset-0 bg-[#f59e0b]/35 pointer-events-none z-10" />}
-    {state.isMoveFrom && !state.isSelected && <div className="absolute inset-0 bg-[#d97706]/25 pointer-events-none z-10" />}
-    {state.isMoveTo && (
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-        <div className="w-[90%] h-[90%] rounded-full border-[3px] border-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.7)]" />
-      </div>
+    {state.isSelected && (
+      <div className="absolute inset-0 bg-[#d4af37]/35 ring-2 ring-inset ring-[#d4af37]/80 shadow-[inset_0_0_12px_rgba(212,175,55,0.4)] pointer-events-none z-10" />
+    )}
+    {state.isMoveFrom && !state.isSelected && (
+      <div className="absolute inset-0 bg-[#d4af37]/20 pointer-events-none z-10" />
+    )}
+    {state.isMoveTo && !state.isSelected && (
+      <div className="absolute inset-0 bg-[#d4af37]/30 ring-2 ring-inset ring-[#d4af37]/70 shadow-[inset_0_0_10px_rgba(212,175,55,0.35)] pointer-events-none z-10" />
     )}
     {state.isHoveredTarget && (
-      <div className="absolute inset-0 bg-[#84cc16]/30 border-2 border-[#84cc16] shadow-[inset_0_0_12px_rgba(132,204,22,0.5)] z-30 pointer-events-none" />
+      <div className="absolute inset-0 bg-[#d4af37]/30 border-2 border-[#d4af37] shadow-[inset_0_0_14px_rgba(212,175,55,0.5)] z-30 pointer-events-none" />
     )}
   </>
 );
@@ -82,9 +84,9 @@ const SquareCoordinates: React.FC<{
 const TargetIndicator: React.FC<{ hasPiece: boolean }> = ({ hasPiece }) => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
     {hasPiece ? (
-      <div className="w-[90%] h-[90%] rounded-full border-[3px] border-red-500 bg-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+      <div className="w-[90%] h-[90%] rounded-full border-[3px] border-red-500/80 bg-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.6)]" />
     ) : (
-      <div className="w-[28%] h-[28%] max-w-6 max-h-6 min-w-3 min-h-3 rounded-full bg-[#84cc16] shadow-[0_0_12px_rgba(132,204,22,0.9)] opacity-85" />
+      <div className="w-[28%] h-[28%] max-w-6 max-h-6 min-w-3 min-h-3 rounded-full bg-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.8)] ring-2 ring-[#d4af37]/40 opacity-90 transition-transform duration-150" />
     )}
   </div>
 );
