@@ -7,6 +7,7 @@ import { friendsPlugin } from './friends';
 import { ratingPlugin } from './rating/plugin';
 import { RatingService } from './rating/service';
 import { prisma } from './db';
+import { startKeepAliveCron } from './keepalive';
 
 interface PlayerSession {
   id?: string;
@@ -65,6 +66,15 @@ const app = new Elysia()
   .use(authPlugin)
   .use(friendsPlugin)
   .use(ratingPlugin)
+  .get('/', () => ({
+    name: 'Chaturanga API',
+    status: 'online',
+    timestamp: new Date().toISOString(),
+  }))
+  .get('/health', () => ({
+    status: 'online',
+    timestamp: new Date().toISOString(),
+  }))
   .get('/api/health', () => ({
     status: 'online',
     timestamp: new Date().toISOString(),
@@ -511,3 +521,5 @@ console.log(`Health check available at http://localhost:${PORT}/api/health`);
 console.log(`Auth endpoints ready at http://localhost:${PORT}/api/auth`);
 console.log(`Leaderboard endpoints ready at http://localhost:${PORT}/api/leaderboard`);
 console.log(`Rating endpoints ready at http://localhost:${PORT}/api/rating`);
+
+startKeepAliveCron();

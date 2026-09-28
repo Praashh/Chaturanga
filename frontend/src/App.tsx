@@ -99,7 +99,6 @@ function ChaturangaApp() {
     playCapture,
   } = useChaturangaGame({ isAuthenticated, playerId: user?.id });
 
-  // Move history navigation & keyboard controls
   const moveNav = useMoveNavigation({
     moveHistory,
     liveBoard: board,
@@ -134,6 +133,11 @@ function ChaturangaApp() {
       setOnlinePlayerName(user.name);
     }
   }, [user?.name, setOnlinePlayerName]);
+
+  useEffect(() => {
+    const apiBase = (import.meta.env.VITE_API_URL as string)?.replace(/\/$/, '');
+    fetch(`${apiBase}/api/health`, { method: 'GET' }).catch(() => { });
+  }, []);
 
   // Listen to browser URL changes (/game/:roomId) and popstate
   useEffect(() => {
@@ -222,9 +226,8 @@ function ChaturangaApp() {
         />
 
         <div
-          className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row items-center justify-center p-2 sm:p-3 xl:p-4 gap-3 lg:gap-4 xl:gap-6 w-full ${
-            mode === 'online' && onlineRoomId ? 'online-active' : ''
-          }`}
+          className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row items-center justify-center p-2 sm:p-3 xl:p-4 gap-3 lg:gap-4 xl:gap-6 w-full ${mode === 'online' && onlineRoomId ? 'online-active' : ''
+            }`}
         >
           <Battlefield
             mode={mode}

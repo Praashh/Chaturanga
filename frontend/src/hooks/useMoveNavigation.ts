@@ -42,11 +42,9 @@ export function useMoveNavigation({
   playCapture,
   playPieceMove,
 }: UseMoveNavigationProps) {
-  // null = Live mode, -1 = Starting Position, 0..N-1 = Move index
   const [selectedMoveIndex, setSelectedMoveIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  // Audio player helper for navigation
   const playMoveAudio = useCallback(
     (move?: Move | null) => {
       if (!move) {
@@ -64,7 +62,6 @@ export function useMoveNavigation({
     [playMove, playCapture, playPieceMove]
   );
 
-  // Compute all historical board snapshots from moveHistory
   const snapshots = useMemo<BoardSnapshot[]>(() => {
     const initialBoard = createInitialBoard();
     const list: BoardSnapshot[] = [
@@ -115,7 +112,6 @@ export function useMoveNavigation({
     return list;
   }, [moveHistory]);
 
-  // Reset to live if game moves are cleared (e.g. new game)
   useEffect(() => {
     if (moveHistory.length === 0) {
       setSelectedMoveIndex(null);
@@ -123,7 +119,6 @@ export function useMoveNavigation({
     }
   }, [moveHistory.length]);
 
-  // Navigation handlers
   const goToFirst = useCallback(() => {
     setIsPlaying(false);
     setSelectedMoveIndex(prev => {
@@ -151,7 +146,7 @@ export function useMoveNavigation({
   const goToNext = useCallback(() => {
     setIsPlaying(false);
     setSelectedMoveIndex(prev => {
-      if (prev === null) return null; // Already at latest
+      if (prev === null) return null;
       if (prev === -1) {
         if (moveHistory.length === 0) return null;
         playMoveAudio(moveHistory[0]);
@@ -165,7 +160,7 @@ export function useMoveNavigation({
         playMove?.();
       }
       if (prev >= moveHistory.length - 2) {
-        return null; // Return to live
+        return null;
       }
       return nextIndex;
     });
@@ -203,14 +198,12 @@ export function useMoveNavigation({
     [moveHistory, playMoveAudio, playMove]
   );
 
-  // Toggle autoplay
   const togglePlay = useCallback(() => {
     if (moveHistory.length === 0) return;
 
     setIsPlaying(prev => {
       if (prev) return false;
 
-      // If at end or live, restart autoplay from beginning
       setSelectedMoveIndex(current => {
         if (current === null || current >= moveHistory.length - 1) {
           playMove?.();
@@ -222,7 +215,6 @@ export function useMoveNavigation({
     });
   }, [moveHistory.length, playMove]);
 
-  // Autoplay timer effect
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -259,7 +251,6 @@ export function useMoveNavigation({
     return () => clearInterval(interval);
   }, [isPlaying, moveHistory, playMoveAudio]);
 
-  // Keyboard navigation listener (Arrow keys, Home, End, Space, Flip)
   const isEnabledRef = useRef(enabled);
   useEffect(() => {
     isEnabledRef.current = enabled;
@@ -269,7 +260,6 @@ export function useMoveNavigation({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isEnabledRef.current) return;
 
-      // Ignore if user is currently typing in an input, textarea, or contentEditable
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -280,7 +270,6 @@ export function useMoveNavigation({
         return;
       }
 
-      // Ignore if modifier keys are pressed (let browser shortcuts like Cmd+Arrow work)
       if (e.metaKey || e.ctrlKey || e.altKey) {
         return;
       }
@@ -327,12 +316,10 @@ export function useMoveNavigation({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToPrevious, goToNext, goToFirst, goToLast, togglePlay, onFlipBoard]);
 
-  // Determine if user is currently exploring past moves
   const isReviewing =
     selectedMoveIndex !== null &&
     (selectedMoveIndex < moveHistory.length - 1 || selectedMoveIndex === -1);
 
-  // Derive board state depending on live vs historical exploration
   const currentSnapshot = useMemo(() => {
     if (selectedMoveIndex === null) return null;
     const snapIndex = Math.max(0, Math.min(snapshots.length - 1, selectedMoveIndex + 1));
