@@ -80,51 +80,53 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
 
   const inCheck = status.type === 'active' ? (isKingInCheck(board, turn) ? turn : null) : null;
 
+  const boardRef = useRef(board);
   const playerColorRef = useRef(playerColor);
-  playerColorRef.current = playerColor;
-
   const statusRef = useRef(status);
-  statusRef.current = status;
+
+  useEffect(() => {
+    boardRef.current = board;
+    playerColorRef.current = playerColor;
+    statusRef.current = status;
+  }, [board, playerColor, status]);
 
   // Remote Move Handler for WebSockets
   const handleRemoteMove = useCallback(
     ({ from, to }: { from: SquareCoord; to: SquareCoord }) => {
-      setBoard(prevBoard => {
-        const piece = prevBoard[from.row][from.col];
-        if (!piece) return prevBoard; // Already executed locally or invalid
+      const currentBoard = boardRef.current;
+      const piece = currentBoard[from.row][from.col];
+      if (!piece) return; // Already executed locally or invalid
 
-        const { newBoard, moveRecord } = executeMove(prevBoard, from, to);
-        const nextTurn: PieceColor = piece.color === 'white' ? 'black' : 'white';
-        const newStatus = evaluateGameStatus(newBoard, nextTurn);
+      const { newBoard, moveRecord } = executeMove(currentBoard, from, to);
+      const nextTurn: PieceColor = piece.color === 'white' ? 'black' : 'white';
+      const newStatus = evaluateGameStatus(newBoard, nextTurn);
 
-        if (moveRecord.captured) {
-          if (piece.color === 'white') {
-            setCapturedWhite(prev => [...prev, moveRecord.captured!]);
-          } else {
-            setCapturedBlack(prev => [...prev, moveRecord.captured!]);
-          }
-          playCapture();
-        } else if (moveRecord.promotion) {
-          playPromote();
+      if (moveRecord.captured) {
+        if (piece.color === 'white') {
+          setCapturedWhite(prev => [...prev, moveRecord.captured!]);
         } else {
-          playPieceMove(moveRecord.piece.type, true);
+          setCapturedBlack(prev => [...prev, moveRecord.captured!]);
         }
+        playCapture();
+      } else if (moveRecord.promotion) {
+        playPromote();
+      } else {
+        playPieceMove(moveRecord.piece.type, true);
+      }
 
-        setTurn(nextTurn);
-        setStatus(newStatus);
-        setLastMove(moveRecord);
-        setMoveHistory(prev => [...prev, moveRecord]);
-        setSelectedSquare(null);
-        setLegalMoves([]);
+      setBoard(newBoard);
+      setTurn(nextTurn);
+      setStatus(newStatus);
+      setLastMove(moveRecord);
+      setMoveHistory(prev => [...prev, moveRecord]);
+      setSelectedSquare(null);
+      setLegalMoves([]);
 
-        if (newStatus.type !== 'active') {
-          playGameEnd();
-        } else if (isKingInCheck(newBoard, nextTurn)) {
-          playCheck();
-        }
-
-        return newBoard;
-      });
+      if (newStatus.type !== 'active') {
+        playGameEnd();
+      } else if (isKingInCheck(newBoard, nextTurn)) {
+        playCheck();
+      }
     },
     [playCapture, playPromote, playPieceMove, playGameEnd, playCheck]
   );

@@ -71,35 +71,28 @@ export function useChaturangaSocket({
   const socketRef = useRef<WebSocket | null>(null);
   const pendingActions = useRef<((ws: WebSocket) => void)[]>([]);
   const isSearchingRef = useRef(isSearching);
-  isSearchingRef.current = isSearching;
-
-  // Keep references to latest callbacks so functions have stable identity
   const onRemoteMoveRef = useRef(onRemoteMove);
-  onRemoteMoveRef.current = onRemoteMove;
-
   const onRemoteChatRef = useRef(onRemoteChat);
-  onRemoteChatRef.current = onRemoteChat;
-
   const onMatchFoundRef = useRef(onMatchFound);
-  onMatchFoundRef.current = onMatchFound;
-
   const onRemoteResignRef = useRef(onRemoteResign);
-  onRemoteResignRef.current = onRemoteResign;
-
   const onGameOverRef = useRef(onGameOver);
-  onGameOverRef.current = onGameOver;
-
   const playerNameRef = useRef(playerName);
-  playerNameRef.current = playerName;
-
   const playerIdRef = useRef(playerId);
-  playerIdRef.current = playerId;
-
   const roomIdRef = useRef(roomId);
-  roomIdRef.current = roomId;
-
   const assignedColorRef = useRef(assignedColor);
-  assignedColorRef.current = assignedColor;
+
+  useEffect(() => {
+    isSearchingRef.current = isSearching;
+    onRemoteMoveRef.current = onRemoteMove;
+    onRemoteChatRef.current = onRemoteChat;
+    onMatchFoundRef.current = onMatchFound;
+    onRemoteResignRef.current = onRemoteResign;
+    onGameOverRef.current = onGameOver;
+    playerNameRef.current = playerName;
+    playerIdRef.current = playerId;
+    roomIdRef.current = roomId;
+    assignedColorRef.current = assignedColor;
+  });
 
   // Helper to compute correct WS URL
   const getWsUrl = useCallback(() => {
@@ -457,17 +450,27 @@ export function useChaturangaSocket({
     roomIdRef.current = roomId;
     if (roomId) {
       initSocket();
-    } else if (!isSearchingRef.current) {
-      disconnect();
+    } else if (!isSearchingRef.current && socketRef.current) {
+      const ws = socketRef.current;
+      socketRef.current = null;
+      try {
+        ws.close();
+      } catch {}
     }
-  }, [roomId, initSocket, disconnect]);
+  }, [roomId, initSocket]);
 
   // Cleanup only on unmount
   useEffect(() => {
     return () => {
-      disconnect();
+      if (socketRef.current) {
+        const ws = socketRef.current;
+        socketRef.current = null;
+        try {
+          ws.close();
+        } catch {}
+      }
     };
-  }, [disconnect]);
+  }, []);
 
   const clearRatingSettlement = useCallback(() => {
     setRatingSettlement(null);

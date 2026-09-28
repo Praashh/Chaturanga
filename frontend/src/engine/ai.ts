@@ -172,7 +172,7 @@ export function getBestMove(
   const beta = Infinity;
 
   // Prioritize captures for root ordering
-  const sortedMoves = [...legalMoves].sort((a, b) => {
+  const sortedMoves = legalMoves.toSorted((a, b) => {
     const targetA = board[a.to.row][a.to.col];
     const targetB = board[b.to.row][b.to.col];
     const valA = targetA ? PIECE_VALUES[targetA.type] : 0;

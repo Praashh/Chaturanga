@@ -1,5 +1,5 @@
-import React from 'react';
-import type { PieceColor, Piece, GameStatus, GameMode, AIDifficulty } from '../types/game';
+import React, { useMemo } from 'react';
+import type { PieceColor, Piece, PieceType, GameStatus, GameMode, AIDifficulty } from '../types/game';
 import { PieceIcon } from './PieceIcon';
 import { Volume2, VolumeX, RotateCcw, ArrowUpDown, BookOpen, Users, Bot, Globe } from 'lucide-react';
 
@@ -38,6 +38,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onOpenRules,
   onOpenLobby,
 }) => {
+  const groupedWhite = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of capturedWhite) {
+      counts[p.type] = (counts[p.type] || 0) + 1;
+    }
+    return Object.entries(counts);
+  }, [capturedWhite]);
+
+  const groupedBlack = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of capturedBlack) {
+      counts[p.type] = (counts[p.type] || 0) + 1;
+    }
+    return Object.entries(counts);
+  }, [capturedBlack]);
+
   const getModeLabel = () => {
     switch (mode) {
       case 'pass_and_play':
@@ -129,8 +145,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {capturedWhite.length === 0 ? (
               <span className="text-[11px] text-amber-100/30 italic font-serif">No captures</span>
             ) : (
-              capturedWhite.map((p, idx) => (
-                <PieceIcon key={idx} type={p.type} color="black" size={24} className="opacity-90 hover:opacity-100" />
+              groupedWhite.map(([type, count]) => (
+                <div key={type} className="flex items-center gap-0.5">
+                  <PieceIcon type={type as PieceType} color="black" size={24} className="opacity-90 hover:opacity-100" />
+                  {count > 1 && (
+                    <span className="text-[10px] font-mono text-[#d4af37] font-semibold">×{count}</span>
+                  )}
+                </div>
               ))
             )}
           </div>
@@ -145,8 +166,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {capturedBlack.length === 0 ? (
               <span className="text-[11px] text-amber-100/30 italic font-serif">No captures</span>
             ) : (
-              capturedBlack.map((p, idx) => (
-                <PieceIcon key={idx} type={p.type} color="white" size={24} className="opacity-90 hover:opacity-100" />
+              groupedBlack.map(([type, count]) => (
+                <div key={type} className="flex items-center gap-0.5">
+                  <PieceIcon type={type as PieceType} color="white" size={24} className="opacity-90 hover:opacity-100" />
+                  {count > 1 && (
+                    <span className="text-[10px] font-mono text-[#d4af37] font-semibold">×{count}</span>
+                  )}
+                </div>
               ))
             )}
           </div>

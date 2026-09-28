@@ -15,26 +15,7 @@ const SIDEBAR_WIDTH = "13.5rem"
 const SIDEBAR_WIDTH_ICON = "3.75rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
-type SidebarContext = {
-  state: "expanded" | "collapsed"
-  open: boolean
-  setOpen: (open: boolean) => void
-  openMobile: boolean
-  setOpenMobile: (open: boolean) => void
-  isMobile: boolean
-  toggleSidebar: () => void
-}
-
-const SidebarContext = React.createContext<SidebarContext | null>(null)
-
-export function useSidebar() {
-  const context = React.useContext(SidebarContext)
-  if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider.")
-  }
-
-  return context
-}
+import { SidebarContext, useSidebar } from "./sidebar-context"
 
 export const SidebarProvider = React.forwardRef<
   HTMLDivElement,
@@ -163,7 +144,7 @@ export const Sidebar = React.forwardRef<
       ref={ref}
       data-state={state}
       className={cn(
-        "hidden md:flex flex-col h-full bg-[#161512] border-r border-[#262421] text-[#b5b0a8] shrink-0 transition-all duration-200 overflow-hidden",
+        "hidden md:flex flex-col h-full bg-[#161512] border-r border-[#262421] text-[#b5b0a8] shrink-0 transition-[width] duration-200 overflow-hidden",
         state === "collapsed" ? "w-[--sidebar-width-icon]" : "w-[--sidebar-width]",
         className
       )}

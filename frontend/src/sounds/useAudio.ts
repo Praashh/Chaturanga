@@ -51,6 +51,7 @@ export function useAudio() {
       entries.map(async ([key, url]) => {
         try {
           const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const arrayBuf = await res.arrayBuffer();
           const decoded = await ctx.decodeAudioData(arrayBuf);
           buffersRef.current.set(key, decoded);
@@ -92,20 +93,24 @@ export function useAudio() {
   }, [getAudioContext, loadAudioBuffers]);
 
   const toggleMute = useCallback(() => {
-    setIsMuted(prev => {
-      const next = !prev;
-      localStorage.setItem('chaturanga_muted', String(next));
-      return next;
-    });
+    setIsMuted(prev => !prev);
   }, []);
 
   const toggleSoundTheme = useCallback(() => {
-    setSoundTheme(prev => {
-      const next = prev === 'vedic' ? 'classic' : 'vedic';
-      localStorage.setItem('chaturanga_sound_theme', next);
-      return next;
-    });
+    setSoundTheme(prev => (prev === 'vedic' ? 'classic' : 'vedic'));
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('chaturanga_muted', String(isMuted));
+    } catch {}
+  }, [isMuted]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('chaturanga_sound_theme', soundTheme);
+    } catch {}
+  }, [soundTheme]);
 
   // Core sound playback with low-latency AudioBufferSource & HTML5 fallback
   const playSound = useCallback(

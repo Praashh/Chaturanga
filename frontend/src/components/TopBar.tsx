@@ -163,12 +163,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div
+                <button
+                  type="button"
                   onClick={promptGoogleSignIn}
+                  aria-label="Sign In with Google"
                   className="w-8 h-8 rounded-full border border-[#d4af37]/70 bg-[#2a241c] overflow-hidden flex items-center justify-center cursor-pointer shadow-sm hover:border-[#d4af37] transition-colors"
                 >
                   <UserIcon className="w-4 h-4 text-[#d4af37]" />
-                </div>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 Click to Sign In with Google

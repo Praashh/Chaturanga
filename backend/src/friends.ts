@@ -9,6 +9,7 @@ import {
   removeFriend,
   searchUsers,
 } from './db';
+import { extractToken } from './auth';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -20,12 +21,11 @@ export const friendsPlugin = new Elysia({ prefix: '/api/friends' })
       exp: '7d',
     })
   )
-  .derive(async ({ headers, sessionJwt }) => {
-    const authHeader = headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  .derive(async ({ cookie, headers, sessionJwt }) => {
+    const token = extractToken(cookie, headers);
+    if (!token) {
       return { userId: null };
     }
-    const token = authHeader.substring(7);
     try {
       const payload = await sessionJwt.verify(token);
       if (payload && payload.sub) {

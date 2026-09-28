@@ -37,13 +37,29 @@ const matchmakingQueue: QueuedPlayer[] = [];
 
 const PORT = Number(process.env.PORT) || 3001;
 
+// Strict CORS allowlist for production frontend and local development
+const ALLOWED_ORIGINS: string[] = [
+  process.env.FRONTEND_URL as string,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+if (process.env.FRONTEND_URL) {
+  const envFrontend = process.env.FRONTEND_URL.trim().replace(/\/$/, '');
+  if (envFrontend && !ALLOWED_ORIGINS.includes(envFrontend)) {
+    ALLOWED_ORIGINS.push(envFrontend);
+  }
+}
+
 const app = new Elysia()
   .use(
     cors({
-      origin: true,
+      origin: ALLOWED_ORIGINS,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+      exposeHeaders: ['Set-Cookie'],
     })
   )
   .use(authPlugin)

@@ -10,7 +10,99 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL as string).replace(/\/$/, '');
+
+interface WarriorAvatarHeaderProps {
+  user: {
+    picture?: string | null;
+    name?: string;
+  } | null;
+}
+
+const WarriorAvatarHeader: React.FC<WarriorAvatarHeaderProps> = ({ user }) => (
+  <div className="text-center space-y-2 mb-6">
+    <div className="relative inline-block">
+      <Avatar className="w-20 h-20 border-2 border-[#d4af37] p-0.5 shadow-xl bg-[#26221c] mx-auto">
+        {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
+        <AvatarFallback className="bg-[#26221c] text-3xl font-serif text-[#d4af37]">
+          {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="absolute -bottom-1 -right-1 bg-[#1a1815] border border-[#d4af37] rounded-full p-1 text-[#fcd34d]" title="Verified Warrior">
+        <ShieldCheck className="w-4 h-4" />
+      </div>
+    </div>
+
+    <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-serif">
+      Claim Your Warrior Handle
+    </h1>
+    <p className="text-xs text-[#a39c91] max-w-xs mx-auto leading-relaxed">
+      Welcome, <span className="text-white font-medium">{user?.name}</span>. Choose a unique handle to step onto the 64-square battlefield.
+    </p>
+  </div>
+);
+
+interface UsernameStatusIndicatorProps {
+  isChecking: boolean;
+  isAvailable: boolean | null;
+}
+
+const UsernameStatusIndicator: React.FC<UsernameStatusIndicatorProps> = ({ isChecking, isAvailable }) => {
+  if (isChecking) {
+    return <Loader2 className="w-4 h-4 text-[#d4af37] animate-spin" />;
+  }
+  if (isAvailable === true) {
+    return (
+      <div className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
+        <Check className="w-3.5 h-3.5" />
+      </div>
+    );
+  }
+  if (isAvailable === false) {
+    return (
+      <div className="w-5 h-5 rounded-full bg-red-950/80 border border-red-500/50 flex items-center justify-center text-red-400">
+        <X className="w-3.5 h-3.5" />
+      </div>
+    );
+  }
+  return null;
+};
+
+interface UsernameSuggestionsChipsProps {
+  suggestions: string[];
+  current: string;
+  onSelect: (val: string) => void;
+}
+
+const UsernameSuggestionsChips: React.FC<UsernameSuggestionsChipsProps> = ({
+  suggestions,
+  current,
+  onSelect,
+}) => {
+  if (suggestions.length === 0) return null;
+  return (
+    <div className="space-y-1.5 pt-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8a857d] block">
+        Suggestions
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {suggestions.map(s => (
+          <button
+            type="button"
+            key={s}
+            onClick={() => onSelect(s)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-colors cursor-pointer ${current === s
+              ? 'bg-[#d4af37]/20 border border-[#d4af37] text-[#fcd34d] font-bold shadow-sm'
+              : 'bg-[#201e1a] border border-[#2e2a22] text-[#b5b0a6] hover:border-[#4d4538] hover:text-white'
+              }`}
+          >
+            @{s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface OnboardingPageProps {
   onCompleted: () => void;
@@ -34,19 +126,19 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
       .replace(/[^a-z0-9_]/g, '')
       .slice(0, 14);
 
-    const emailPrefix = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 14);
+    const randomNum1 = Math.floor(10 + Math.random() * 89);
+    const randomNum2 = Math.floor(100 + Math.random() * 899);
 
-    const list = [
+    return [
       baseName,
-      `${baseName}_in`,
-      `${baseName}_7`,
-      emailPrefix !== baseName ? emailPrefix : `raja_${baseName}`,
-    ].filter((val, idx, arr) => val && arr.indexOf(val) === idx).slice(0, 4);
-
-    return list;
+      `${baseName}_${randomNum1}`,
+      `${baseName}${randomNum2}`,
+      `raja_${baseName}`.slice(0, 18),
+      `senapati_${baseName}`.slice(0, 20),
+    ];
   }, [user]);
 
-  // Set initial default username suggestion
+  // Set initial suggestion
   useEffect(() => {
     if (user && !username) {
       const initial = user.username && user.username !== 'warrior'
@@ -54,7 +146,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
         : suggestions[0] || 'warrior';
       setUsername(initial);
     }
-  }, [user, suggestions]);
+  }, [user, username, suggestions]);
 
   // Debounced live availability checker
   const checkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -98,11 +190,16 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
       clearTimeout(checkTimeoutRef.current);
     }
 
+    const controller = new AbortController();
+
     checkTimeoutRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`${API_BASE}/api/auth/check-username?username=${encodeURIComponent(clean)}`, {
+          credentials: 'include',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: controller.signal,
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         if (data.available) {
@@ -112,15 +209,18 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
           setIsAvailable(false);
           setStatusMessage(data.error || 'This handle is already taken');
         }
-      } catch {
-        setIsAvailable(null);
-        setStatusMessage('Error verifying username');
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          setIsAvailable(null);
+          setStatusMessage('Error verifying username');
+        }
       } finally {
         setIsChecking(false);
       }
     }, 280);
 
     return () => {
+      controller.abort();
       if (checkTimeoutRef.current) {
         clearTimeout(checkTimeoutRef.current);
       }
@@ -135,24 +235,27 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const res = await completeOnboarding(clean);
-    if (res.success) {
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#d4af37', '#fcd34d', '#ffffff', '#22c55e'],
-        });
-      } catch {
-        // Ignore confetti error
-      }
+    try {
+      const res = await completeOnboarding(clean);
+      if (res.success) {
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#d4af37', '#fcd34d', '#ffffff', '#22c55e'],
+          });
+        } catch {
+          // Ignore confetti error
+        }
 
-      setTimeout(() => {
-        onCompleted();
-      }, 500);
-    } else {
-      setSubmitError(res.error || 'Failed to assign username');
+        setTimeout(() => {
+          onCompleted();
+        }, 500);
+      } else {
+        setSubmitError(res.error || 'Failed to assign username');
+      }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -182,27 +285,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
             </Badge>
           </div>
 
-          {/* User Avatar + Welcome Header */}
-          <div className="text-center space-y-2 mb-6">
-            <div className="relative inline-block">
-              <Avatar className="w-20 h-20 border-2 border-[#d4af37] p-0.5 shadow-xl bg-[#26221c] mx-auto">
-                {user?.picture && <AvatarImage src={user.picture} alt={user.name} />}
-                <AvatarFallback className="bg-[#26221c] text-3xl font-serif text-[#d4af37]">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute -bottom-1 -right-1 bg-[#1a1815] border border-[#d4af37] rounded-full p-1 text-[#fcd34d]" title="Verified Warrior">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-serif">
-              Claim Your Warrior Handle
-            </h1>
-            <p className="text-xs text-[#a39c91] max-w-xs mx-auto leading-relaxed">
-              Welcome, <span className="text-white font-medium">{user?.name}</span>. Choose a unique handle to step onto the 64-square battlefield.
-            </p>
-          </div>
+          <WarriorAvatarHeader user={user} />
 
           {/* Form */}
           <CardContent className="p-0">
@@ -231,17 +314,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
 
                   {/* Right Status Indicator Icon */}
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                    {isChecking ? (
-                      <Loader2 className="w-4 h-4 text-[#d4af37] animate-spin" />
-                    ) : isAvailable === true ? (
-                      <div className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
-                        <Check className="w-3.5 h-3.5" />
-                      </div>
-                    ) : isAvailable === false ? (
-                      <div className="w-5 h-5 rounded-full bg-red-950/80 border border-red-500/50 flex items-center justify-center text-red-400">
-                        <X className="w-3.5 h-3.5" />
-                      </div>
-                    ) : null}
+                    <UsernameStatusIndicator isChecking={isChecking} isAvailable={isAvailable} />
                   </div>
                 </div>
 
@@ -253,8 +326,8 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
                         isAvailable === true
                           ? 'text-emerald-400 font-medium flex items-center gap-1'
                           : isAvailable === false
-                          ? 'text-red-400 font-medium flex items-center gap-1'
-                          : 'text-[#8a857d]'
+                            ? 'text-red-400 font-medium flex items-center gap-1'
+                            : 'text-[#8a857d]'
                       }
                     >
                       {statusMessage}
@@ -266,30 +339,11 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
                 </div>
               </div>
 
-              {/* Smart Suggestions Chips */}
-              {suggestions.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8a857d] block">
-                    Suggestions
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {suggestions.map(s => (
-                      <button
-                        type="button"
-                        key={s}
-                        onClick={() => setUsername(s)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
-                          username === s
-                            ? 'bg-[#d4af37]/20 border border-[#d4af37] text-[#fcd34d] font-bold shadow-sm'
-                            : 'bg-[#201e1a] border border-[#2e2a22] text-[#b5b0a6] hover:border-[#4d4538] hover:text-white'
-                        }`}
-                      >
-                        @{s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <UsernameSuggestionsChips
+                suggestions={suggestions}
+                current={username}
+                onSelect={setUsername}
+              />
 
               {/* Submit Error */}
               {submitError && (
@@ -329,7 +383,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onCompleted }) =
               onClick={logout}
               className="text-[11px] text-[#8a857d] hover:text-red-300 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <LogOut className="w-3 h-3" />
+              <LogOut className="w-3.5 h-3.5" />
               <span>Sign out or use a different account</span>
             </button>
           </div>

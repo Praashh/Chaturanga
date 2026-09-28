@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { RatingService } from './service';
 import { prisma } from '../db';
+import { extractToken } from '../auth';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -13,12 +14,11 @@ export const ratingPlugin = new Elysia({ prefix: '/api' })
       exp: '7d',
     })
   )
-  .derive(async ({ headers, sessionJwt }) => {
-    const authHeader = headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  .derive(async ({ cookie, headers, sessionJwt }) => {
+    const token = extractToken(cookie, headers);
+    if (!token) {
       return { userId: null };
     }
-    const token = authHeader.substring(7);
     try {
       const payload = await sessionJwt.verify(token);
       if (payload && payload.sub) {

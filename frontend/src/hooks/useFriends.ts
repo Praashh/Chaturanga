@@ -6,7 +6,7 @@ import type {
   UserSearchResult,
 } from '../types/friends';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL as string).replace(/\/$/, '');
 
 export function useFriends() {
   const { token, isAuthenticated } = useAuth();
@@ -17,15 +17,15 @@ export function useFriends() {
   const [error, setError] = useState<string | null>(null);
 
   const tokenRef = useRef(token);
-  tokenRef.current = token;
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   const fetchFriends = useCallback(async () => {
-    if (!tokenRef.current) return;
     try {
       const res = await fetch(`${API_BASE}/api/friends`, {
-        headers: {
-          Authorization: `Bearer ${tokenRef.current}`,
-        },
+        credentials: 'include',
+        headers: tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
       });
 
       if (res.ok) {
@@ -43,9 +43,9 @@ export function useFriends() {
     }
   }, []);
 
-  // Initial fetch and refresh when auth token changes
+  // Initial fetch and refresh when auth status changes
   useEffect(() => {
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
       setIsLoading(true);
       fetchFriends().finally(() => setIsLoading(false));
 
@@ -62,18 +62,17 @@ export function useFriends() {
       setIncomingRequests([]);
       setOutgoingRequests([]);
     }
-  }, [isAuthenticated, token, fetchFriends]);
+  }, [isAuthenticated, fetchFriends]);
 
   const searchUsers = useCallback(
     async (query: string): Promise<UserSearchResult[]> => {
-      if (!tokenRef.current || !query.trim()) return [];
+      if (!query.trim()) return [];
       try {
         const res = await fetch(
           `${API_BASE}/api/friends/search?q=${encodeURIComponent(query.trim())}`,
           {
-            headers: {
-              Authorization: `Bearer ${tokenRef.current}`,
-            },
+            credentials: 'include',
+            headers: tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
           }
         );
 
@@ -92,15 +91,13 @@ export function useFriends() {
 
   const sendRequest = useCallback(
     async (targetIdOrEmail: string): Promise<{ success: boolean; message?: string; error?: string }> => {
-      if (!tokenRef.current) {
-        return { success: false, error: 'Must be signed in' };
-      }
       try {
         const res = await fetch(`${API_BASE}/api/friends/request`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${tokenRef.current}`,
+            ...(tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}),
           },
           body: JSON.stringify({ target: targetIdOrEmail }),
         });
@@ -121,15 +118,13 @@ export function useFriends() {
 
   const acceptRequest = useCallback(
     async (requestId: number): Promise<{ success: boolean; error?: string }> => {
-      if (!tokenRef.current) {
-        return { success: false, error: 'Must be signed in' };
-      }
       try {
         const res = await fetch(`${API_BASE}/api/friends/accept`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${tokenRef.current}`,
+            ...(tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}),
           },
           body: JSON.stringify({ requestId }),
         });
@@ -150,15 +145,13 @@ export function useFriends() {
 
   const rejectRequest = useCallback(
     async (requestId: number): Promise<{ success: boolean; error?: string }> => {
-      if (!tokenRef.current) {
-        return { success: false, error: 'Must be signed in' };
-      }
       try {
         const res = await fetch(`${API_BASE}/api/friends/reject`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${tokenRef.current}`,
+            ...(tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}),
           },
           body: JSON.stringify({ requestId }),
         });
@@ -179,15 +172,11 @@ export function useFriends() {
 
   const removeFriend = useCallback(
     async (friendId: string): Promise<{ success: boolean; error?: string }> => {
-      if (!tokenRef.current) {
-        return { success: false, error: 'Must be signed in' };
-      }
       try {
         const res = await fetch(`${API_BASE}/api/friends/${encodeURIComponent(friendId)}`, {
           method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${tokenRef.current}`,
-          },
+          credentials: 'include',
+          headers: tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
         });
 
         const data = await res.json();

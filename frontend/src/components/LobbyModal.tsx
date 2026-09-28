@@ -6,10 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
 } from './ui/dialog';
+import { CustomModalHeader } from './CustomModalHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -69,21 +67,11 @@ export const LobbyModal: React.FC<LobbyModalProps> = ({
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-[#1a1815] border-[#262421] text-[#e3ded7] flex flex-col">
         {/* Modal Header */}
-        <DialogHeader className="px-5 py-3.5 border-b border-[#262421] bg-[#161512] text-left">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-[#262421] border border-[#3a352f] flex items-center justify-center text-sm shadow-inner">
-              ⚔️
-            </div>
-            <div>
-              <DialogTitle className="text-sm font-semibold text-white tracking-wide">
-                Game Setup
-              </DialogTitle>
-              <DialogDescription className="text-[11px] text-[#8a857d]">
-                Choose how you want to play Chaturanga
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+        <CustomModalHeader
+          icon="⚔️"
+          title="Game Setup"
+          description="Choose how you want to play Chaturanga"
+        />
 
         {/* Mode Tabs */}
         <Tabs

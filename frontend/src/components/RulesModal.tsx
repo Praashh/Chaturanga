@@ -6,11 +6,9 @@ import { PIECE_NAMES } from '../types/game';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from './ui/dialog';
+import { CustomModalHeader } from './CustomModalHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
 import { Button } from './ui/button';
@@ -20,28 +18,19 @@ interface RulesModalProps {
   onClose: () => void;
 }
 
+const PIECES_LIST: PieceType[] = ['raja', 'mantri', 'gaja', 'ashva', 'ratha', 'padati'];
+
 export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
-  const piecesList: PieceType[] = ['raja', 'mantri', 'gaja', 'ashva', 'ratha', 'padati'];
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[88vh] p-0 gap-0 overflow-hidden bg-[#1a1815] border-[#262421] text-[#e3ded7] flex flex-col">
         {/* Modal Top Header */}
-        <DialogHeader className="px-5 py-3.5 border-b border-[#262421] bg-[#161512] text-left">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-[#262421] border border-[#3a352f] flex items-center justify-center text-sm shadow-inner">
-              📖
-            </div>
-            <div>
-              <DialogTitle className="text-sm font-semibold text-white tracking-wide">
-                Chaturanga Piece Guide & Rules
-              </DialogTitle>
-              <DialogDescription className="text-[11px] text-[#8a857d]">
-                The ancient 6th-century ancestor of Chess (Ashtāpada rules)
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+        <CustomModalHeader
+          icon="📖"
+          title="Chaturanga Piece Guide & Rules"
+          description="The ancient 6th-century ancestor of Chess (Ashtāpada rules)"
+        />
 
         <Tabs defaultValue="pieces" className="flex-1 flex flex-col min-h-0">
           {/* Tab Switcher */}
@@ -72,7 +61,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {piecesList.map((type, idx) => {
+                  {PIECES_LIST.map((type, idx) => {
                     const info = PIECE_NAMES[type];
                     const isLightSquare = idx % 2 === 0;
 

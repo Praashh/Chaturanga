@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Piece, PieceColor, SquareCoord, Move } from '../types/game';
-import { isAshtapadaMark } from '../types/game';
 import { PieceIcon } from './PieceIcon';
+import { BoardSquareCell } from './BoardSquareCell';
 
 interface AshtapadaBoardProps {
   board: (Piece | null)[][];
@@ -45,6 +45,18 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const dragStateRef = useRef(dragState);
+  const onMoveRef = useRef(onMove);
+  const onSquareClickRef = useRef(onSquareClick);
+
+  useEffect(() => {
+    onMoveRef.current = onMove;
+    onSquareClickRef.current = onSquareClick;
+  });
+
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
 
   // Perspective
   const isFlipped = playerColor === 'black';
@@ -91,38 +103,37 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
-      setDragState(prev => {
-        if (!prev) return null;
+      const prev = dragStateRef.current;
+      setDragState(null);
+      if (!prev) return;
 
-        if (prev.hasMoved && boardRef.current) {
-          const rect = boardRef.current.getBoundingClientRect();
-          if (
-            e.clientX >= rect.left &&
-            e.clientX <= rect.right &&
-            e.clientY >= rect.top &&
-            e.clientY <= rect.bottom
-          ) {
-            const colIdx = Math.floor(((e.clientX - rect.left) / rect.width) * 8);
-            const rowIdx = Math.floor(((e.clientY - rect.top) / rect.height) * 8);
-            if (colIdx >= 0 && colIdx < 8 && rowIdx >= 0 && rowIdx < 8) {
-              const targetCol = colIndices[colIdx];
-              const targetRow = rowIndices[rowIdx];
-              const targetCoord = { col: targetCol, row: targetRow };
+      if (prev.hasMoved && boardRef.current) {
+        const rect = boardRef.current.getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          const colIdx = Math.floor(((e.clientX - rect.left) / rect.width) * 8);
+          const rowIdx = Math.floor(((e.clientY - rect.top) / rect.height) * 8);
+          if (colIdx >= 0 && colIdx < 8 && rowIdx >= 0 && rowIdx < 8) {
+            const targetCol = colIndices[colIdx];
+            const targetRow = rowIndices[rowIdx];
+            const targetCoord = { col: targetCol, row: targetRow };
 
-              if (targetCol === prev.from.col && targetRow === prev.from.row) {
-                // Dropped on same square -> stay selected
+            if (targetCol === prev.from.col && targetRow === prev.from.row) {
+              // Dropped on same square -> stay selected
+            } else {
+              if (onMoveRef.current) {
+                onMoveRef.current(prev.from, targetCoord);
               } else {
-                if (onMove) {
-                  onMove(prev.from, targetCoord);
-                } else {
-                  onSquareClick(targetCoord);
-                }
+                onSquareClickRef.current(targetCoord);
               }
             }
           }
         }
-        return null;
-      });
+      }
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -134,7 +145,7 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [dragState, colIndices, rowIndices, onMove, onSquareClick]);
+  }, [dragState, colIndices, rowIndices]);
 
   // Current hovered square during drag
   const hoveredSquare = useMemo(() => {
@@ -210,7 +221,7 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
         >
           {/* White height fill */}
           <div
-            className="w-full bg-[#efdfc8] transition-all duration-400 ease-out"
+            className="w-full bg-[#efdfc8] transition-[height] duration-400 ease-out"
             style={{ height: `${whiteEvalPct}%` }}
           />
           {/* Numerical label */}
@@ -241,18 +252,11 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
                 hoveredSquare?.col === col &&
                 hoveredSquare?.row === row &&
                 isLegalTarget(col, row);
-              const isSourceBeingDragged =
+              const isSourceBeingDragged = Boolean(
                 dragState?.hasMoved &&
                 dragState.from.col === col &&
-                dragState.from.row === row;
-
-              const cursorStyle = canDrag
-                ? dragState?.hasMoved
-                  ? 'cursor-grabbing'
-                  : 'cursor-grab'
-                : isTarget
-                ? 'cursor-pointer'
-                : 'cursor-default';
+                dragState.from.row === row
+              );
 
               // Resigned or checkmated king (tipped sideways with crimson glow)
               const isFallenKing =
@@ -262,118 +266,34 @@ export const AshtapadaBoard: React.FC<AshtapadaBoardProps> = ({
 
               const isCheckKing =
                 !isFallenKing &&
-                inCheck &&
+                inCheck !== null &&
                 piece?.type === 'raja' &&
                 piece?.color === inCheck;
 
-              // Tile colors matching the reference screenshot
               const isLight = (row + col) % 2 === 1;
-              const baseBg = isLight ? 'bg-[#efdfc8]' : 'bg-[#b58863]';
-              const labelColor = isLight ? 'text-[#8a684b]' : 'text-[#efdfc8]';
 
               return (
-                <div
+                <BoardSquareCell
                   key={`${col}-${row}`}
+                  col={col}
+                  row={row}
+                  piece={piece}
+                  state={{
+                    isLight,
+                    isSelected: selected,
+                    isMoveFrom,
+                    isMoveTo,
+                    isTarget,
+                    isHoveredTarget: Boolean(isHoveredTarget),
+                    isSourceBeingDragged,
+                    isFallenKing: Boolean(isFallenKing),
+                    isCheckKing: Boolean(isCheckKing),
+                    canDrag,
+                    hasMoved: Boolean(dragState?.hasMoved),
+                    isFlipped,
+                  }}
                   onPointerDown={e => handlePointerDown(e, col, row, piece)}
-                  onDragStart={e => e.preventDefault()}
-                  className={`relative flex items-center justify-center select-none transition-colors duration-100 ${baseBg} ${cursorStyle}`}
-                >
-                  {/* Sacred Ashtāpada Classical Inlay Marking (16 sacred squares) */}
-                  {isAshtapadaMark(col, row) && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-1.5 opacity-30 select-none z-0">
-                      <svg viewBox="0 0 100 100" className="w-full h-full text-amber-950 dark:text-[#d4af37]">
-                        {/* Diagonal crossed rays */}
-                        <line x1="12" y1="12" x2="88" y2="88" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                        <line x1="88" y1="12" x2="12" y2="88" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                        {/* Corner gateway brackets */}
-                        <path d="M12 24 L12 12 L24 12 M76 12 L88 12 L88 24 M88 76 L88 88 L76 88 M24 88 L12 88 L12 76" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        {/* Sacred central diamond */}
-                        <polygon points="50,42 58,50 50,58 42,50" fill="none" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                    </div>
-                  )}
-
-                  {/* Selected Square Highlight (Classic clean yellow-gold tile overlay) */}
-                  {selected && (
-                    <div className="absolute inset-0 bg-[#f59e0b]/35 pointer-events-none z-10" />
-                  )}
-
-                  {/* Previous Move Source square highlight */}
-                  {isMoveFrom && !selected && (
-                    <div className="absolute inset-0 bg-[#d97706]/25 pointer-events-none z-10" />
-                  )}
-
-                  {/* Previous Move Destination highlight: Bold Neon Green Ring */}
-                  {isMoveTo && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-                      <div className="w-[90%] h-[90%] rounded-full border-[3px] border-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.7)]" />
-                    </div>
-                  )}
-
-
-                  {/* Drag Hover Target Glow Highlight */}
-                  {isHoveredTarget && (
-                    <div className="absolute inset-0 bg-[#84cc16]/30 border-2 border-[#84cc16] shadow-[inset_0_0_12px_rgba(132,204,22,0.5)] z-30 pointer-events-none" />
-                  )}
-
-                  {/* Coordinates inside corners */}
-                  {col === (isFlipped ? 7 : 0) && (
-                    <span
-                      className={`absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none z-10 ${labelColor}`}
-                    >
-                      {row + 1}
-                    </span>
-                  )}
-                  {row === (isFlipped ? 7 : 0) && (
-                    <span
-                      className={`absolute bottom-0.5 right-1 text-[10px] sm:text-[11px] font-sans font-bold leading-none select-none pointer-events-none lowercase z-10 ${labelColor}`}
-                    >
-                      {String.fromCharCode(97 + col)}
-                    </span>
-                  )}
-
-                  {/* Move Target Indicators */}
-                  {isTarget && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                      {piece ? (
-                        // Target capture ring
-                        <div className="w-[90%] h-[90%] rounded-full border-[3px] border-red-500 bg-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
-                      ) : (
-                        // Clean glowing green destination dot
-                        <div className="w-[28%] h-[28%] max-w-6 max-h-6 min-w-3 min-h-3 rounded-full bg-[#84cc16] shadow-[0_0_12px_rgba(132,204,22,0.9)] opacity-85" />
-                      )}
-                    </div>
-                  )}
-
-                  {/* Attacked or Fallen King Crimson Glow & Threat Mandala */}
-                  {(isFallenKing || isCheckKing) && (
-                    <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center animate-pulse">
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          background:
-                            'radial-gradient(circle, rgba(239, 68, 68, 0.85) 0%, rgba(220, 38, 38, 0.35) 60%, transparent 85%)',
-                        }}
-                      />
-                      <div className="w-[110%] h-[110%] rounded-full border border-red-500/60 animate-spin [animation-duration:9s] opacity-70" />
-                    </div>
-                  )}
-
-                  {/* The Piece */}
-                  {piece && (
-                    <div
-                      className={`relative z-10 flex items-center justify-center w-full h-full p-0.5 sm:p-1 transition-opacity duration-150 ${
-                        isSourceBeingDragged ? 'opacity-30' : 'opacity-100'
-                      }`}
-                    >
-                      <PieceIcon
-                        type={piece.type}
-                        color={piece.color}
-                        fallen={isFallenKing}
-                      />
-                    </div>
-                  )}
-                </div>
+                />
               );
             })
           )}

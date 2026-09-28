@@ -11,10 +11,41 @@ import {
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID as string;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET as string;
-const FRONTEND_URL = process.env.FRONTEND_URL as string;
+const FRONTEND_URL = (process.env.FRONTEND_URL as string).replace(/\/$/, '');
 const JWT_SECRET = process.env.JWT_SECRET as string;
-const BASE_URL = process.env.BASE_URL as string;
+const BASE_URL = (process.env.BASE_URL as string).replace(/\/$/, '');
 
+export const isProduction =
+  process.env.NODE_ENV === 'production' ||
+  process.env.RENDER === 'true' ||
+  Boolean(process.env.RENDER);
+
+export const SESSION_COOKIE_NAME = 'chaturanga_session';
+
+export function getSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+  };
+}
+
+export const extractToken = (
+  cookie: any,
+  headers: Record<string, string | undefined>
+): string | null => {
+  const cookieVal = cookie?.[SESSION_COOKIE_NAME]?.value;
+  if (cookieVal && typeof cookieVal === 'string' && cookieVal.trim()) {
+    return cookieVal.trim();
+  }
+  const authHeader = headers['authorization'];
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  return null;
+};
 
 const googleClient = new OAuth2Client({
   clientId: GOOGLE_CLIENT_ID,
@@ -40,7 +71,7 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
   // Google ID Token / One-Tap / Popup Verification
   .post(
     '/google',
-    async ({ body, sessionJwt, set }) => {
+    async ({ body, cookie, sessionJwt, set }) => {
       const { credential } = body;
 
       if (!credential) {
@@ -95,6 +126,12 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
           username: user.username,
         });
 
+        // Set HttpOnly session cookie
+        cookie[SESSION_COOKIE_NAME]?.set({
+          value: token,
+          ...getSessionCookieOptions(),
+        });
+
         return {
           success: true,
           token,
@@ -114,19 +151,24 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
   )
 
   // Get Current Authenticated User profile & ratings from PostgreSQL
-  .get('/me', async ({ headers, sessionJwt, set }) => {
-    const authHeader = headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  .get('/me', async ({ cookie, headers, sessionJwt, set }) => {
+    const token = extractToken(cookie, headers);
+    if (!token) {
       set.status = 401;
-      return { error: 'Unauthorized: Missing or malformed authorization header' };
+      return { error: 'Unauthorized: Missing session cookie or authorization header' };
     }
 
-    const token = authHeader.substring(7);
-    const payload = await sessionJwt.verify(token);
+    let payload: any;
+    try {
+      payload = await sessionJwt.verify(token);
+    } catch {
+      set.status = 401;
+      return { error: 'Unauthorized: Invalid or expired token' };
+    }
 
     if (!payload || !payload.sub) {
       set.status = 401;
-      return { error: 'Unauthorized: Invalid or expired token' };
+      return { error: 'Unauthorized: Invalid or expired token payload' };
     }
 
     const user = await getUserById(payload.sub as string);
@@ -135,23 +177,30 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
       return { error: 'User not found in database' };
     }
 
+    // Refresh / slide session cookie expiry
+    cookie[SESSION_COOKIE_NAME]?.set({
+      value: token,
+      ...getSessionCookieOptions(),
+    });
+
     return {
       success: true,
       user,
+      token,
     };
   })
 
   // Check username availability in real-time
   .get(
     '/check-username',
-    async ({ query, headers, sessionJwt }) => {
+    async ({ query, cookie, headers, sessionJwt }) => {
       const username = query.username || '';
       let currentUserId: string | undefined;
 
-      const authHeader = headers['authorization'];
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = extractToken(cookie, headers);
+      if (token) {
         try {
-          const payload = await sessionJwt.verify(authHeader.substring(7));
+          const payload = await sessionJwt.verify(token);
           if (payload && typeof payload === 'object' && 'sub' in payload && payload.sub) {
             currentUserId = payload.sub as string;
           }
@@ -183,14 +232,13 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
   // Complete onboarding by claiming chosen username
   .post(
     '/onboard',
-    async ({ body, headers, sessionJwt, set }) => {
-      const authHeader = headers['authorization'];
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    async ({ body, cookie, headers, sessionJwt, set }) => {
+      const token = extractToken(cookie, headers);
+      if (!token) {
         set.status = 401;
         return { error: 'Unauthorized: Authentication token required' };
       }
 
-      const token = authHeader.substring(7);
       let payload: any;
       try {
         payload = await sessionJwt.verify(token);
@@ -218,6 +266,12 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
         username: result.user.username,
       });
 
+      // Update session cookie with new token
+      cookie[SESSION_COOKIE_NAME]?.set({
+        value: newToken,
+        ...getSessionCookieOptions(),
+      });
+
       return {
         success: true,
         token: newToken,
@@ -232,7 +286,7 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
   )
 
   // Server-side OAuth redirect callback endpoint (as fallback if popup is blocked)
-  .get('/google/callback', async ({ query, sessionJwt, set, redirect }) => {
+  .get('/google/callback', async ({ query, cookie, sessionJwt, set, redirect }) => {
     const code = query.code as string | undefined;
     if (!code) {
       return redirect(`${FRONTEND_URL}/?error=no_code`);
@@ -268,10 +322,29 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
         username: user.username,
       });
 
+      cookie[SESSION_COOKIE_NAME]?.set({
+        value: token,
+        ...getSessionCookieOptions(),
+      });
+
       const targetPath = user.onboarded ? '/' : '/onboard';
       return redirect(`${FRONTEND_URL}${targetPath}?token=${token}`);
     } catch (err) {
       console.error('OAuth callback failed:', err);
       return redirect(`${FRONTEND_URL}/?error=oauth_failed`);
     }
+  })
+
+  // Sign out and clear HttpOnly session cookie
+  .post('/logout', ({ cookie }) => {
+    cookie[SESSION_COOKIE_NAME]?.set({
+      value: '',
+      ...getSessionCookieOptions(),
+      maxAge: 0,
+      expires: new Date(0),
+    });
+    return {
+      success: true,
+      message: 'Logged out successfully',
+    };
   });
