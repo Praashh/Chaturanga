@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { Battlefield } from './components/Battlefield';
@@ -11,7 +11,7 @@ import { useChaturangaGame } from './hooks/useChaturangaGame';
 import { useGameActions } from './hooks/useGameActions';
 import { useAppRouting } from './hooks/useAppRouting';
 import { useMatchmakingSearch } from './hooks/useMatchmakingSearch';
-import { evaluateBoard } from './engine/ai';
+import { useMoveNavigation } from './hooks/useMoveNavigation';
 import { getRoomIdFromUrl } from './utils/roomUrl';
 import { Toaster } from './components/ui/sonner';
 import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
@@ -75,6 +75,8 @@ function ChaturangaApp() {
     mode,
     aiDifficulty,
     playerColor,
+    boardFlipped,
+    flipBoard,
     isMuted,
     soundTheme,
     toggleSoundTheme,
@@ -93,6 +95,19 @@ function ChaturangaApp() {
     toggleMute,
     playGameStart,
   } = useChaturangaGame({ isAuthenticated, playerId: user?.id });
+
+  // Move history navigation & keyboard controls
+  const moveNav = useMoveNavigation({
+    moveHistory,
+    liveBoard: board,
+    liveTurn: turn,
+    liveLastMove: lastMove,
+    liveCapturedWhite: capturedWhite,
+    liveCapturedBlack: capturedBlack,
+    liveInCheck: inCheck,
+    onFlipBoard: flipBoard,
+    enabled: !isRulesOpen && !isLobbyOpen && !isFriendsOpen,
+  });
 
   // Refresh user profile whenever authoritative rating settlement occurs
   useEffect(() => {
@@ -161,16 +176,14 @@ function ChaturangaApp() {
     socket,
   });
 
-  // Compute live engine evaluation score
-  const evalScore = useMemo(() => {
-    const raw = evaluateBoard(board, 'white');
-    return Number((raw / 100).toFixed(1));
-  }, [board]);
-
-  const materialAdvantageWhite = Math.max(0, evalScore);
-  const materialAdvantageBlack = Math.max(0, -evalScore);
+  const materialAdvantageWhite = Math.max(0, moveNav.displayedEvalScore);
+  const materialAdvantageBlack = Math.max(0, -moveNav.displayedEvalScore);
   const resignedOrMatedColor = getResignedOrMatedColor(status);
   const opponentName = getOpponentDisplayName(mode, aiDifficulty, socket.opponentName);
+
+  const effectivePerspective: PieceColor = boardFlipped
+    ? (playerColor === 'white' ? 'black' : 'white')
+    : playerColor;
 
   if (isLoading) {
     return <RealmLoadingScreen />;
@@ -213,13 +226,13 @@ function ChaturangaApp() {
             socket={socket}
             opponentName={opponentName}
             aiDifficulty={aiDifficulty}
-            playerColor={playerColor}
-            capturedWhite={capturedWhite}
-            capturedBlack={capturedBlack}
+            playerColor={effectivePerspective}
+            capturedWhite={moveNav.displayedCapturedWhite}
+            capturedBlack={moveNav.displayedCapturedBlack}
             materialAdvantageWhite={materialAdvantageWhite}
             materialAdvantageBlack={materialAdvantageBlack}
             status={status}
-            turn={turn}
+            turn={moveNav.displayedTurn}
             searchSeconds={searchSeconds}
             uiFlags={{
               isMatchJustFound,
@@ -229,18 +242,21 @@ function ChaturangaApp() {
             }}
             user={user}
             friends={friends}
-            inCheck={inCheck}
-            lastMove={lastMove}
-            board={board}
+            inCheck={moveNav.displayedInCheck}
+            lastMove={moveNav.displayedLastMove}
+            board={moveNav.displayedBoard}
             legalMoves={legalMoves}
             selectedSquare={selectedSquare}
             resignedOrMatedColor={resignedOrMatedColor}
-            evalScore={evalScore}
+            evalScore={moveNav.displayedEvalScore}
             onlinePlayerName={onlinePlayerName}
             handleShareGame={handleShareGame}
             handleBoardSquareClick={handleBoardSquareClick}
             handleBoardMove={handleBoardMove}
             promptGoogleSignIn={promptGoogleSignIn}
+            isReviewing={moveNav.isReviewing}
+            selectedMoveIndex={moveNav.selectedMoveIndex}
+            onReturnToLive={moveNav.returnToLive}
           />
 
           <div
@@ -267,6 +283,29 @@ function ChaturangaApp() {
                 socket.cancelFindMatch();
                 handleSelectAI('warrior', 'white');
               }}
+              selectedMoveIndex={moveNav.selectedMoveIndex}
+              onSelectMove={moveNav.selectMove}
+              onGoFirst={moveNav.goToFirst}
+              onGoPrevious={moveNav.goToPrevious}
+              onGoNext={moveNav.goToNext}
+              onGoLast={moveNav.goToLast}
+              isPlaying={moveNav.isPlaying}
+              onTogglePlay={moveNav.togglePlay}
+              canGoBack={moveNav.canGoBack}
+              canGoForward={moveNav.canGoForward}
+              onFlipBoard={flipBoard}
+              opponentName={opponentName}
+              opponentRating={
+                socket.matchedOpponent?.opponentRating ??
+                (mode === 'vs_ai'
+                  ? (aiDifficulty === 'novice' ? 1200 : aiDifficulty === 'warrior' ? 1500 : 1800)
+                  : 1500)
+              }
+              playerName={user?.name || onlinePlayerName || 'You'}
+              playerRating={user?.rating ?? 1500}
+              gameMode={mode}
+              onOpenLobby={() => setIsLobbyOpen(true)}
+              onOpenFriends={() => setIsFriendsOpen(true)}
             />
           </div>
         </div>
