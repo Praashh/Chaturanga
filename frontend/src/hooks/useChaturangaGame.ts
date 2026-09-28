@@ -76,6 +76,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     playIllegal,
     playNotify,
     playPromote,
+    playMove,
   } = useAudio();
 
   const inCheck = status.type === 'active' ? (isKingInCheck(board, turn) ? turn : null) : null;
@@ -426,6 +427,9 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     playGameEnd,
     playIllegal,
     playNotify,
+    playMove,
+    playPieceMove,
+    playCapture,
   };
 }
 

@@ -15,7 +15,7 @@ export interface BoardSnapshot {
 
 interface UseMoveNavigationProps {
   moveHistory: Move[];
-  liveBoard: (Piece | null)[][] ;
+  liveBoard: (Piece | null)[][];
   liveTurn: PieceColor;
   liveLastMove: Move | null;
   liveCapturedWhite: Piece[];
@@ -23,6 +23,9 @@ interface UseMoveNavigationProps {
   liveInCheck: PieceColor | null;
   onFlipBoard?: () => void;
   enabled?: boolean;
+  playMove?: () => void;
+  playCapture?: () => void;
+  playPieceMove?: (pieceType: string, isOpponent?: boolean) => void;
 }
 
 export function useMoveNavigation({
@@ -35,10 +38,31 @@ export function useMoveNavigation({
   liveInCheck,
   onFlipBoard,
   enabled = true,
+  playMove,
+  playCapture,
+  playPieceMove,
 }: UseMoveNavigationProps) {
   // null = Live mode, -1 = Starting Position, 0..N-1 = Move index
   const [selectedMoveIndex, setSelectedMoveIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+
+  // Audio player helper for navigation
+  const playMoveAudio = useCallback(
+    (move?: Move | null) => {
+      if (!move) {
+        playMove?.();
+        return;
+      }
+      if (move.captured) {
+        if (playCapture) playCapture();
+        else if (playMove) playMove();
+      } else {
+        if (playPieceMove) playPieceMove(move.piece.type, move.piece.color === 'black');
+        else if (playMove) playMove();
+      }
+    },
+    [playMove, playCapture, playPieceMove]
+  );
 
   // Compute all historical board snapshots from moveHistory
   const snapshots = useMemo<BoardSnapshot[]>(() => {
@@ -102,20 +126,27 @@ export function useMoveNavigation({
   // Navigation handlers
   const goToFirst = useCallback(() => {
     setIsPlaying(false);
-    setSelectedMoveIndex(-1);
-  }, []);
+    setSelectedMoveIndex(prev => {
+      if (prev !== -1) {
+        playMove?.();
+      }
+      return -1;
+    });
+  }, [playMove]);
 
   const goToPrevious = useCallback(() => {
     setIsPlaying(false);
     setSelectedMoveIndex(prev => {
       if (prev === null) {
         if (moveHistory.length === 0) return -1;
+        playMove?.();
         return Math.max(-1, moveHistory.length - 2);
       }
       if (prev <= -1) return -1;
+      playMove?.();
       return prev - 1;
     });
-  }, [moveHistory.length]);
+  }, [moveHistory.length, playMove]);
 
   const goToNext = useCallback(() => {
     setIsPlaying(false);
@@ -123,20 +154,33 @@ export function useMoveNavigation({
       if (prev === null) return null; // Already at latest
       if (prev === -1) {
         if (moveHistory.length === 0) return null;
+        playMoveAudio(moveHistory[0]);
         if (moveHistory.length === 1) return null;
         return 0;
+      }
+      const nextIndex = prev + 1;
+      if (nextIndex < moveHistory.length) {
+        playMoveAudio(moveHistory[nextIndex]);
+      } else {
+        playMove?.();
       }
       if (prev >= moveHistory.length - 2) {
         return null; // Return to live
       }
-      return prev + 1;
+      return nextIndex;
     });
-  }, [moveHistory.length]);
+  }, [moveHistory, playMoveAudio, playMove]);
 
   const goToLast = useCallback(() => {
     setIsPlaying(false);
-    setSelectedMoveIndex(null);
-  }, []);
+    setSelectedMoveIndex(prev => {
+      if (prev !== null) {
+        const lastM = moveHistory[moveHistory.length - 1];
+        playMoveAudio(lastM);
+      }
+      return null;
+    });
+  }, [moveHistory, playMoveAudio]);
 
   const returnToLive = goToLast;
 
@@ -144,12 +188,19 @@ export function useMoveNavigation({
     (index: number | null) => {
       setIsPlaying(false);
       if (index === null || index >= moveHistory.length - 1) {
+        const lastM = moveHistory[moveHistory.length - 1];
+        playMoveAudio(lastM);
         setSelectedMoveIndex(null);
+      } else if (index === -1) {
+        playMove?.();
+        setSelectedMoveIndex(-1);
       } else {
+        const m = moveHistory[index];
+        playMoveAudio(m);
         setSelectedMoveIndex(index);
       }
     },
-    [moveHistory.length]
+    [moveHistory, playMoveAudio, playMove]
   );
 
   // Toggle autoplay
@@ -162,13 +213,14 @@ export function useMoveNavigation({
       // If at end or live, restart autoplay from beginning
       setSelectedMoveIndex(current => {
         if (current === null || current >= moveHistory.length - 1) {
+          playMove?.();
           return -1;
         }
         return current;
       });
       return true;
     });
-  }, [moveHistory.length]);
+  }, [moveHistory.length, playMove]);
 
   // Autoplay timer effect
   useEffect(() => {
@@ -185,22 +237,27 @@ export function useMoveNavigation({
             setIsPlaying(false);
             return null;
           }
+          playMoveAudio(moveHistory[0]);
           if (moveHistory.length === 1) {
             setIsPlaying(false);
             return null;
           }
           return 0;
         }
+        const nextIndex = prev + 1;
+        if (nextIndex < moveHistory.length) {
+          playMoveAudio(moveHistory[nextIndex]);
+        }
         if (prev >= moveHistory.length - 2) {
           setIsPlaying(false);
           return null;
         }
-        return prev + 1;
+        return nextIndex;
       });
     }, 750);
 
     return () => clearInterval(interval);
-  }, [isPlaying, moveHistory.length]);
+  }, [isPlaying, moveHistory, playMoveAudio]);
 
   // Keyboard navigation listener (Arrow keys, Home, End, Space, Flip)
   const isEnabledRef = useRef(enabled);

@@ -94,6 +94,9 @@ function ChaturangaApp() {
     resignGame,
     toggleMute,
     playGameStart,
+    playMove,
+    playPieceMove,
+    playCapture,
   } = useChaturangaGame({ isAuthenticated, playerId: user?.id });
 
   // Move history navigation & keyboard controls
@@ -107,6 +110,9 @@ function ChaturangaApp() {
     liveInCheck: inCheck,
     onFlipBoard: flipBoard,
     enabled: !isRulesOpen && !isLobbyOpen && !isFriendsOpen,
+    playMove,
+    playPieceMove,
+    playCapture,
   });
 
   // Refresh user profile whenever authoritative rating settlement occurs
