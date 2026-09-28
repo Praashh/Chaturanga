@@ -44,7 +44,7 @@ interface UseChaturangaSocketProps {
     opponentRating?: number,
     opponentPicture?: string | null
   ) => void;
-  onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black'; whiteRating?: RatingUpdateInfo; blackRating?: RatingUpdateInfo }) => void;
+  onRemoteResign?: (resignation: { color: 'white' | 'black'; winner: 'white' | 'black' }) => void;
   onGameOver?: (event: GameOverEvent) => void;
 }
 
@@ -268,16 +268,6 @@ export function useChaturangaSocket({
           } else if (data.type === 'player_resigned') {
             const resigningColor = data.payload.color;
             const winningColor = data.payload.winner;
-
-            const isWhite =
-              assignedColorRef.current === 'white' ||
-              (data.payload.whiteRating && data.payload.whiteRating.userId === playerIdRef.current);
-
-            const myRating = isWhite ? data.payload.whiteRating : data.payload.blackRating;
-            const oppRating = isWhite ? data.payload.blackRating : data.payload.whiteRating;
-
-            if (myRating) setRatingSettlement(myRating);
-            if (oppRating) setOpponentRatingSettlement(oppRating);
 
             const systemChat = {
               sender: 'System',

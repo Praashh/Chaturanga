@@ -219,7 +219,6 @@ export const authPlugin = new Elysia({ prefix: '/api/auth' })
 
       return {
         available: true,
-        username: result.cleanUsername,
       };
     },
     {

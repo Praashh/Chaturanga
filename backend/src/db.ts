@@ -14,6 +14,18 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
+export const userPublicSelect = {
+  id: true,
+  email: true,
+  name: true,
+  username: true,
+  onboarded: true,
+  picture: true,
+  rating: true,
+  gamesPlayed: true,
+  gamesWon: true,
+} as const;
+
 export interface UserRecord {
   id: string;
   email: string;
@@ -22,35 +34,40 @@ export interface UserRecord {
   onboarded: boolean;
   picture: string | null;
   rating: number;
-  ratingDeviation?: number;
   gamesPlayed: number;
   gamesWon: number;
-  createdAt: Date;
-  updatedAt: Date;
-  lastLoginAt: Date;
 }
 
-export interface FriendProfile {
+export interface FriendRequestProfile {
   id: string;
   name: string;
   username: string;
   picture: string | null;
   rating: number;
-  friendshipId?: string;
+}
+
+export interface FriendProfile extends FriendRequestProfile {
+  gamesPlayed: number;
+  gamesWon: number;
 }
 
 export interface FriendRequestRecord {
   id: number;
-  senderId: string;
-  receiverId: string;
-  createdAt: Date | string;
-  sender?: FriendProfile;
-  receiver?: FriendProfile;
+  senderId?: string;
+  receiverId?: string;
+  sender?: FriendRequestProfile;
+  receiver?: FriendRequestProfile;
 }
 
 export type RelationshipStatus = 'self' | 'friend' | 'pending_sent' | 'pending_received' | 'none';
 
-export interface UserSearchResult extends FriendProfile {
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  username: string;
+  picture: string | null;
+  rating: number;
+  gamesPlayed: number;
   relationshipStatus: RelationshipStatus;
   requestId?: number;
 }
@@ -58,12 +75,14 @@ export interface UserSearchResult extends FriendProfile {
 export async function getUserById(id: string): Promise<UserRecord | null> {
   return await prisma.user.findUnique({
     where: { id },
+    select: userPublicSelect,
   });
 }
 
 export async function getUserByEmail(email: string): Promise<UserRecord | null> {
   return await prisma.user.findUnique({
     where: { email },
+    select: userPublicSelect,
   });
 }
 
@@ -71,6 +90,7 @@ export async function getUserByUsername(username: string): Promise<UserRecord | 
   const clean = username.trim().toLowerCase().replace(/^@/, '');
   return await prisma.user.findUnique({
     where: { username: clean },
+    select: userPublicSelect,
   });
 }
 
@@ -125,6 +145,7 @@ export async function upsertUser(data: {
         ...(data.username ? { username: data.username.toLowerCase().trim() } : {}),
         lastLoginAt: new Date(),
       },
+      select: userPublicSelect,
     });
   }
 
@@ -147,6 +168,7 @@ export async function upsertUser(data: {
       gamesWon: 0,
       lastLoginAt: new Date(),
     },
+    select: userPublicSelect,
   });
 
   // Automatically initialize default category in player_rating
@@ -220,6 +242,7 @@ export async function completeUserOnboarding(
         username: check.cleanUsername,
         onboarded: true,
       },
+      select: userPublicSelect,
     });
 
     return { success: true, user: updated };
@@ -243,7 +266,7 @@ export async function updateUserStats(
   console.warn(
     `[DEPRECATED] updateUserStats called for user ${id}. Use RatingService.settleGame instead.`
   );
-  return await prisma.user.findUnique({ where: { id } });
+  return await prisma.user.findUnique({ where: { id }, select: userPublicSelect });
 }
 
 export async function getFriends(userId: string): Promise<FriendProfile[]> {
@@ -258,6 +281,8 @@ export async function getFriends(userId: string): Promise<FriendProfile[]> {
             username: true,
             picture: true,
             rating: true,
+            gamesPlayed: true,
+            gamesWon: true,
           },
         },
       },
@@ -266,10 +291,7 @@ export async function getFriends(userId: string): Promise<FriendProfile[]> {
       },
     });
 
-    return friendships.map((f) => ({
-      ...f.friend,
-      friendshipId: f.id,
-    }));
+    return friendships.map((f) => f.friend);
   } catch (err) {
     console.error(`Failed to fetch friends for user ${userId}:`, err);
     throw err;
@@ -292,14 +314,18 @@ export async function getFriendRequests(userId: string): Promise<{
     const [incoming, outgoing] = await Promise.all([
       prisma.friendRequest.findMany({
         where: { receiverId: userId },
-        include: {
+        select: {
+          id: true,
+          senderId: true,
           sender: { select: profileSelect },
         },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.friendRequest.findMany({
         where: { senderId: userId },
-        include: {
+        select: {
+          id: true,
+          receiverId: true,
           receiver: { select: profileSelect },
         },
         orderBy: { createdAt: 'desc' },
@@ -317,7 +343,7 @@ export async function getFriendRequests(userId: string): Promise<{
 export async function sendFriendRequest(
   senderId: string,
   targetIdentifier: string
-): Promise<{ success: boolean; error?: string; autoAccepted?: boolean; request?: FriendRequestRecord }> {
+): Promise<{ success: boolean; error?: string; autoAccepted?: boolean }> {
   const cleanTarget = targetIdentifier.trim().replace(/^@/, '');
   if (!cleanTarget) {
     return { success: false, error: 'Target username, ID, or email is required' };
@@ -405,29 +431,15 @@ export async function sendFriendRequest(
     }
 
     // Create new friend request
-    const newRequest = await tx.friendRequest.create({
+    await tx.friendRequest.create({
       data: {
         senderId,
         receiverId: receiver.id,
-      },
-      include: {
-        receiver: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            picture: true,
-            rating: true,
-            gamesPlayed: true,
-            gamesWon: true,
-          },
-        },
       },
     });
 
     return {
       success: true,
-      request: newRequest as FriendRequestRecord,
       autoAccepted: false,
     };
   });
@@ -554,7 +566,6 @@ export async function searchUsers(
       picture: true,
       rating: true,
       gamesPlayed: true,
-      gamesWon: true,
     },
     take: 20,
   });

@@ -73,8 +73,6 @@ export interface PlayerRatingChangePayload {
 export interface PlayerResignedPayload {
   color: 'white' | 'black';
   winner: 'white' | 'black';
-  whiteRating?: PlayerRatingChangePayload;
-  blackRating?: PlayerRatingChangePayload;
 }
 
 export interface GameOverPayload {

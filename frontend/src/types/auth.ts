@@ -6,12 +6,8 @@ export interface User {
   onboarded: boolean;
   picture: string | null;
   rating: number;
-  ratingDeviation?: number;
   gamesPlayed: number;
   gamesWon: number;
-  createdAt?: string;
-  updatedAt?: string;
-  lastLoginAt?: string;
 }
 
 export interface AuthResponse {

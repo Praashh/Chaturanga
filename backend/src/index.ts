@@ -67,10 +67,7 @@ const app = new Elysia()
   .use(ratingPlugin)
   .get('/api/health', () => ({
     status: 'online',
-    service: 'chaturanga-backend',
-    runtime: 'bun + elysia',
     timestamp: new Date().toISOString(),
-    message: 'Chaturanga Bun + Elysia server with Prisma v8 PostgreSQL & Google OAuth is active.',
   }))
   .ws('/ws', {
     open(ws) {
@@ -415,8 +412,6 @@ const app = new Elysia()
                 payload: {
                   color: resigningColor,
                   winner,
-                  whiteRating: settlement.white,
-                  blackRating: settlement.black,
                 },
               };
 

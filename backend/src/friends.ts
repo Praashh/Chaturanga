@@ -120,8 +120,6 @@ export const friendsPlugin = new Elysia({ prefix: '/api/friends' })
 
         return {
           success: true,
-          autoAccepted: result.autoAccepted,
-          request: result.request,
           message: result.autoAccepted
             ? 'Alliance mutual! You are now allies.'
             : 'Alliance request sent successfully.',

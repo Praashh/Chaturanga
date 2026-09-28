@@ -203,8 +203,8 @@ export function useFriends() {
   const hasPendingRequest = useCallback(
     (userId: string) => {
       return (
-        incomingRequests.some(r => r.senderId === userId) ||
-        outgoingRequests.some(r => r.receiverId === userId)
+        incomingRequests.some(r => r.senderId === userId || r.sender?.id === userId) ||
+        outgoingRequests.some(r => r.receiverId === userId || r.receiver?.id === userId)
       );
     },
     [incomingRequests, outgoingRequests]
