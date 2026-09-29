@@ -15,7 +15,7 @@ interface TopBarProps {
   onToggleMute: () => void;
   soundTheme?: 'vedic' | 'classic';
   onToggleSoundTheme?: () => void;
-  onOpenSettings: () => void;
+  onOpenHistory: () => void;
   onOpenFriends?: () => void;
   friendsCount?: number;
 }
@@ -26,7 +26,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMute,
   soundTheme = 'vedic',
   onToggleSoundTheme,
-  onOpenSettings,
+  onOpenHistory,
   onOpenFriends,
   friendsCount,
 }) => {
@@ -125,15 +125,15 @@ export const TopBar: React.FC<TopBarProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onOpenSettings}
+                onClick={onOpenHistory}
                 className="text-[#8a857d] hover:text-[#e3ded7] hover:bg-[#262421]"
-                aria-label="Rules & Chronicle"
+                aria-label="Match History & Chronicles"
               >
-                <History className="w-4 h-4" />
+                <History className="w-4 h-4 text-[#d4af37]" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Rules & Chronicle
+              Match History (Previous Games)
             </TooltipContent>
           </Tooltip>
 
@@ -157,6 +157,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               </DropdownMenuTrigger>
               <ProfileDropdown
                 onOpenFriends={onOpenFriends}
+                onOpenHistory={onOpenHistory}
                 friendsCount={friendsCount}
               />
             </DropdownMenu>

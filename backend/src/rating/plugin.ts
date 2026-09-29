@@ -86,6 +86,119 @@ export const ratingPlugin = new Elysia({ prefix: '/api' })
     }
   })
 
+  // GET /api/games/history - Full previous match history with opponent details and outcomes
+  .get(
+    '/games/history',
+    async ({ userId, query, set }) => {
+      if (!userId) {
+        set.status = 401;
+        return { error: 'Unauthorized: Sign in required to view previous games' };
+      }
+
+      try {
+        const limit = query.limit ? parseInt(query.limit, 10) : 50;
+        const games = await prisma.game.findMany({
+          where: {
+            OR: [{ whitePlayerId: userId }, { blackPlayerId: userId }],
+            status: 'completed',
+          },
+          orderBy: { completedAt: 'desc' },
+          take: Math.min(Math.max(limit, 1), 100),
+          include: {
+            whitePlayer: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                picture: true,
+                rating: true,
+              },
+            },
+            blackPlayer: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                picture: true,
+                rating: true,
+              },
+            },
+            ratingHistories: {
+              select: {
+                userId: true,
+                ratingBefore: true,
+                ratingAfter: true,
+                ratingChange: true,
+                result: true,
+              },
+            },
+          },
+        });
+
+        const formattedGames = games.map((game) => {
+          const isWhite = game.whitePlayerId === userId;
+          const myRatingHist = game.ratingHistories.find((rh) => rh.userId === userId);
+          const oppRatingHist = game.ratingHistories.find((rh) => rh.userId !== userId);
+          const opponent = isWhite ? game.blackPlayer : game.whitePlayer;
+
+          let result: 'win' | 'loss' | 'draw' = 'draw';
+          if (game.winner === 'draw') {
+            result = 'draw';
+          } else if (game.winner === 'white') {
+            result = isWhite ? 'win' : 'loss';
+          } else if (game.winner === 'black') {
+            result = isWhite ? 'loss' : 'win';
+          }
+
+          return {
+            id: game.id,
+            category: game.category,
+            isRated: game.isRated,
+            mode: 'online' as const,
+            playedAt: (game.completedAt || game.createdAt).toISOString(),
+            userColor: isWhite ? ('white' as const) : ('black' as const),
+            result,
+            winner: game.winner,
+            endReason: game.endReason,
+            opponent: opponent
+              ? {
+                  id: opponent.id,
+                  name: opponent.name,
+                  username: opponent.username,
+                  picture: opponent.picture,
+                  rating: oppRatingHist
+                    ? Math.round(oppRatingHist.ratingBefore)
+                    : opponent.rating,
+                }
+              : {
+                  id: 'unknown',
+                  name: 'Anonymous Warrior',
+                  username: 'warrior',
+                  picture: null,
+                  rating: 1500,
+                },
+            ratingChange: myRatingHist ? Math.round(myRatingHist.ratingChange) : null,
+            ratingAfter: myRatingHist ? Math.round(myRatingHist.ratingAfter) : null,
+          };
+        });
+
+        return {
+          success: true,
+          games: formattedGames,
+        };
+      } catch (err: any) {
+        console.error(`Error fetching games history for ${userId}:`, err);
+        set.status = 500;
+        return { error: 'Failed to fetch match history' };
+      }
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.String()),
+      }),
+    }
+  )
+
   // GET /api/rating/me - Current authoritative rating and RD
   .get('/rating/me', async ({ userId, query, set }) => {
     if (!userId) {

@@ -20,6 +20,7 @@ import { getBestMove } from '../engine/ai';
 import { useAudio } from '@sounds';
 import { useChaturangaSocket } from './useChaturangaSocket';
 import { updateGameRoomUrl } from '../utils/roomUrl';
+import { recordGameOutcome } from '../utils/gameHistoryStorage';
 
 interface BoardSnapshot {
   board: (Piece | null)[][];
@@ -84,12 +85,57 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
   const boardRef = useRef(board);
   const playerColorRef = useRef(playerColor);
   const statusRef = useRef(status);
+  const hasSavedGameRef = useRef<boolean>(false);
+  const opponentNameRef = useRef<string | null>(null);
+  const opponentRatingRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     boardRef.current = board;
     playerColorRef.current = playerColor;
     statusRef.current = status;
   }, [board, playerColor, status]);
+
+  // Record game outcome to local history
+  const recordOutcome = useCallback(
+    (
+      currentStatus: GameStatus,
+      moves: Move[],
+      overrideOpponent?: string,
+      overrideOpponentRating?: number,
+      ratingDelta?: number | null
+    ) => {
+      if (hasSavedGameRef.current || currentStatus.type === 'active' || moves.length === 0) return;
+      hasSavedGameRef.current = true;
+
+      let oppName = 'Opponent';
+      let oppRating: number | undefined;
+
+      if (mode === 'vs_ai') {
+        oppName = `Computer (${aiDifficulty === 'novice' ? 'Novice' : aiDifficulty === 'warrior' ? 'Warrior' : 'Senapati'})`;
+        oppRating = aiDifficulty === 'novice' ? 1200 : aiDifficulty === 'warrior' ? 1500 : 1800;
+      } else if (mode === 'online') {
+        oppName = overrideOpponent || opponentNameRef.current || 'Online Warrior';
+        oppRating = overrideOpponentRating || opponentRatingRef.current;
+      } else {
+        oppName = 'Local Player (Pass & Play)';
+      }
+
+      const winnerColor = 'winner' in currentStatus ? currentStatus.winner : 'draw';
+
+      recordGameOutcome({
+        id: mode === 'online' && onlineRoomId ? onlineRoomId : undefined,
+        mode,
+        userColor: playerColor,
+        winner: winnerColor,
+        endReason: currentStatus.type,
+        opponentName: oppName,
+        opponentRating: oppRating,
+        moves,
+        ratingChange: ratingDelta,
+      });
+    },
+    [mode, aiDifficulty, playerColor, onlineRoomId]
+  );
 
   // Remote Move Handler for WebSockets
   const handleRemoteMove = useCallback(
@@ -125,6 +171,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
 
       if (newStatus.type !== 'active') {
         playGameEnd();
+        recordOutcome(newStatus, [...moveHistory, moveRecord]);
       } else if (isKingInCheck(newBoard, nextTurn)) {
         playCheck();
       }
@@ -144,6 +191,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     setSelectedSquare(null);
     setLegalMoves([]);
     historyStack.current = [];
+    hasSavedGameRef.current = false;
   }, []);
 
   const handleMatchFound = useCallback(
@@ -164,24 +212,27 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       if (statusRef.current.type === 'resignation') {
         return; // Already processed locally by the resigning player
       }
-      setStatus({ type: 'resignation', winner });
+      const resignedStatus: GameStatus = { type: 'resignation', winner };
+      setStatus(resignedStatus);
       playGameEnd();
+      recordOutcome(resignedStatus, moveHistory);
     },
-    [playGameEnd]
+    [playGameEnd, recordOutcome, moveHistory]
   );
 
   // Remote Game Over Handler for WebSockets
   const handleRemoteGameOver = useCallback(
     (event: any) => {
       if (statusRef.current.type !== 'active') return;
-      if (event.winner === 'draw') {
-        setStatus({ type: 'stalemate' });
-      } else {
-        setStatus({ type: event.reason, winner: event.winner });
-      }
+      const finalStatus: GameStatus =
+        event.winner === 'draw'
+          ? { type: 'stalemate' }
+          : { type: event.reason, winner: event.winner };
+      setStatus(finalStatus);
       playGameEnd();
+      recordOutcome(finalStatus, moveHistory);
     },
-    [playGameEnd]
+    [playGameEnd, recordOutcome, moveHistory]
   );
 
   // WebSocket connection (only connects when room exists AND player is authenticated)
@@ -200,7 +251,13 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     if (mode === 'online' && socket.assignedColor) {
       setPlayerColor(socket.assignedColor);
     }
-  }, [mode, socket.assignedColor]);
+    if (socket.opponentName) {
+      opponentNameRef.current = socket.opponentName;
+    }
+    if (socket.matchedOpponent?.opponentRating) {
+      opponentRatingRef.current = socket.matchedOpponent.opponentRating;
+    }
+  }, [mode, socket.assignedColor, socket.opponentName, socket.matchedOpponent?.opponentRating]);
 
   // Make move helper
   const performMove = useCallback(
@@ -248,6 +305,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
       // Check / Game Over triggers
       if (newStatus.type !== 'active') {
         playGameEnd();
+        recordOutcome(newStatus, [...moveHistory, moveRecord]);
       } else if (isKingInCheck(newBoard, nextTurn)) {
         playCheck();
       }
@@ -375,18 +433,58 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
 
       const loser = resigningColor || playerColor;
       const winner: PieceColor = loser === 'white' ? 'black' : 'white';
-      setStatus({ type: 'resignation', winner });
+      const resignedStatus: GameStatus = { type: 'resignation', winner };
+      setStatus(resignedStatus);
       playGameEnd();
+      recordOutcome(resignedStatus, moveHistory);
 
       if (mode === 'online') {
         socket.sendResign(loser);
       }
     },
-    [status.type, playerColor, playGameEnd, mode, socket]
+    [status.type, playerColor, playGameEnd, mode, socket, recordOutcome, moveHistory]
   );
 
   const flipBoard = useCallback(() => {
     setBoardFlipped(prev => !prev);
+  }, []);
+
+  // Load a completed or archived game's moves to review step-by-step
+  const loadGameMoves = useCallback((movesToLoad: Move[]) => {
+    let currentBoard = createInitialBoard();
+    let currentTurn: PieceColor = 'white';
+    const capWhite: Piece[] = [];
+    const capBlack: Piece[] = [];
+    let lastM: Move | null = null;
+    let currentStatus: GameStatus = { type: 'active' };
+
+    for (const m of movesToLoad) {
+      const { newBoard, moveRecord } = executeMove(currentBoard, m.from, m.to);
+      currentBoard = newBoard;
+      lastM = moveRecord;
+      currentTurn = currentTurn === 'white' ? 'black' : 'white';
+      if (moveRecord.captured) {
+        if (moveRecord.piece.color === 'white') {
+          capWhite.push(moveRecord.captured);
+        } else {
+          capBlack.push(moveRecord.captured);
+        }
+      }
+      currentStatus = evaluateGameStatus(currentBoard, currentTurn);
+    }
+
+    setBoard(currentBoard);
+    setTurn(currentTurn);
+    setStatus(currentStatus);
+    setLastMove(lastM);
+    setCapturedWhite(capWhite);
+    setCapturedBlack(capBlack);
+    setMoveHistory(movesToLoad);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setMode('pass_and_play');
+    historyStack.current = [];
+    hasSavedGameRef.current = true;
   }, []);
 
   return {
@@ -421,6 +519,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     undoMove,
     flipBoard,
     toggleMute,
+    loadGameMoves,
     soundTheme,
     toggleSoundTheme,
     playGameStart,

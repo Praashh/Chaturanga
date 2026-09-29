@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { Battlefield } from './components/Battlefield';
@@ -15,7 +15,7 @@ import { useMoveNavigation } from './hooks/useMoveNavigation';
 import { getRoomIdFromUrl } from './utils/roomUrl';
 import { Toaster } from './components/ui/sonner';
 import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
-import type { PieceColor, GameStatus } from './types/game';
+import type { PieceColor, GameStatus, Move } from './types/game';
 
 function getOpponentDisplayName(
   mode: string,
@@ -56,6 +56,7 @@ function ChaturangaApp() {
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [showEvalBar, setShowEvalBar] = useState(true);
 
   const { user, isAuthenticated, isLoading, promptGoogleSignIn, refreshUser } = useAuth();
@@ -93,6 +94,7 @@ function ChaturangaApp() {
     resetGame,
     resignGame,
     toggleMute,
+    loadGameMoves,
     playGameStart,
     playMove,
     playPieceMove,
@@ -108,11 +110,21 @@ function ChaturangaApp() {
     liveCapturedBlack: capturedBlack,
     liveInCheck: inCheck,
     onFlipBoard: flipBoard,
-    enabled: !isRulesOpen && !isLobbyOpen && !isFriendsOpen,
+    enabled: !isRulesOpen && !isLobbyOpen && !isFriendsOpen && !isHistoryOpen,
     playMove,
     playPieceMove,
     playCapture,
   });
+
+  const handleLoadGameForReview = useCallback(
+    (movesToLoad: Move[]) => {
+      loadGameMoves(movesToLoad);
+      if (movesToLoad.length > 0) {
+        moveNav.selectMove(movesToLoad.length - 1);
+      }
+    },
+    [loadGameMoves, moveNav]
+  );
 
   // Refresh user profile whenever authoritative rating settlement occurs
   useEffect(() => {
@@ -209,6 +221,7 @@ function ChaturangaApp() {
         currentMode={mode}
         onSelectMode={handleSelectMode}
         onOpenRules={() => setIsRulesOpen(true)}
+        onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenFriends={() => setIsFriendsOpen(true)}
         incomingRequestsCount={friends.incomingCount}
         onFindMatch={handleFindMatch}
@@ -220,7 +233,7 @@ function ChaturangaApp() {
           onToggleMute={toggleMute}
           soundTheme={soundTheme}
           onToggleSoundTheme={toggleSoundTheme}
-          onOpenSettings={() => setIsRulesOpen(true)}
+          onOpenHistory={() => setIsHistoryOpen(true)}
           onOpenFriends={() => setIsFriendsOpen(true)}
           friendsCount={friends.friendsCount}
         />
@@ -327,6 +340,10 @@ function ChaturangaApp() {
         onCloseFriends={() => setIsFriendsOpen(false)}
         isLobbyOpen={isLobbyOpen}
         onCloseLobby={() => setIsLobbyOpen(false)}
+        isHistoryOpen={isHistoryOpen}
+        onCloseHistory={() => setIsHistoryOpen(false)}
+        isAuthenticated={isAuthenticated}
+        userId={user?.id}
         mode={mode}
         aiDifficulty={aiDifficulty}
         onlineRoomId={onlineRoomId}
@@ -335,6 +352,7 @@ function ChaturangaApp() {
         onSelectAI={handleSelectAI}
         onSelectOnline={handleSelectOnline}
         onFindMatch={handleFindMatch}
+        onLoadGameForReview={handleLoadGameForReview}
       />
     </SidebarProvider>
   );

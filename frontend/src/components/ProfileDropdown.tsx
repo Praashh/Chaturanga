@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, Trophy, Swords, User as UserIcon, Users } from 'lucide-react';
+import { LogOut, Trophy, Swords, User as UserIcon, Users, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   DropdownMenuContent,
@@ -11,11 +11,13 @@ import { Badge } from './ui/badge';
 
 interface ProfileDropdownProps {
   onOpenFriends?: () => void;
+  onOpenHistory?: () => void;
   friendsCount?: number;
 }
 
 export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   onOpenFriends,
+  onOpenHistory,
   friendsCount,
 }) => {
   const { user, logout } = useAuth();
@@ -75,6 +77,20 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
       </div>
 
       <DropdownMenuSeparator className="bg-[#262421] my-2" />
+
+      {/* Match History Button */}
+      {onOpenHistory && (
+        <DropdownMenuItem
+          onClick={onOpenHistory}
+          className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#201e1b] hover:bg-[#262421] focus:bg-[#262421] text-white border border-[#2c2823] cursor-pointer mb-1.5 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <History className="w-3.5 h-3.5 text-[#d4af37]" />
+            <span>Match History</span>
+          </div>
+          <Badge variant="mono">{user.gamesPlayed}</Badge>
+        </DropdownMenuItem>
+      )}
 
       {/* Friends Button */}
       <DropdownMenuItem

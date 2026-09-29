@@ -2,7 +2,8 @@ import React from 'react';
 import { RulesModal } from './RulesModal';
 import { FriendsModal } from './FriendsModal';
 import { LobbyModal } from './LobbyModal';
-import type { GameMode, AIDifficulty, PieceColor } from '../types/game';
+import { GameHistoryModal } from './GameHistoryModal';
+import type { GameMode, AIDifficulty, PieceColor, Move } from '../types/game';
 import type { FriendUser } from '../types/friends';
 
 interface AppModalsProps {
@@ -12,6 +13,10 @@ interface AppModalsProps {
   onCloseFriends: () => void;
   isLobbyOpen: boolean;
   onCloseLobby: () => void;
+  isHistoryOpen: boolean;
+  onCloseHistory: () => void;
+  isAuthenticated: boolean;
+  userId?: string;
   mode: GameMode;
   aiDifficulty: AIDifficulty;
   onlineRoomId: string | null;
@@ -20,6 +25,7 @@ interface AppModalsProps {
   onSelectAI: (difficulty: AIDifficulty, color: PieceColor) => void;
   onSelectOnline: (roomId: string, playerName: string) => void;
   onFindMatch: () => void;
+  onLoadGameForReview?: (moves: Move[]) => void;
 }
 
 export const AppModals: React.FC<AppModalsProps> = ({
@@ -29,6 +35,10 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onCloseFriends,
   isLobbyOpen,
   onCloseLobby,
+  isHistoryOpen,
+  onCloseHistory,
+  isAuthenticated,
+  userId,
   mode,
   aiDifficulty,
   onlineRoomId,
@@ -37,6 +47,7 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onSelectAI,
   onSelectOnline,
   onFindMatch,
+  onLoadGameForReview,
 }) => (
   <>
     <RulesModal isOpen={isRulesOpen} onClose={onCloseRules} />
@@ -56,5 +67,15 @@ export const AppModals: React.FC<AppModalsProps> = ({
       onSelectOnline={onSelectOnline}
       onFindMatch={onFindMatch}
     />
+    <GameHistoryModal
+      isOpen={isHistoryOpen}
+      onClose={onCloseHistory}
+      isAuthenticated={isAuthenticated}
+      userId={userId}
+      onLoadGameForReview={onLoadGameForReview}
+      onFindMatch={onFindMatch}
+      onPlayAI={() => onSelectAI('warrior', 'white')}
+    />
   </>
 );
+

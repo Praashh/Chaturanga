@@ -11,6 +11,7 @@ import {
   HelpCircle,
   LogOut,
   Zap,
+  History,
 } from 'lucide-react';
 import type { GameMode } from '../types/game';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +40,7 @@ interface SidebarProps {
   currentMode: GameMode;
   onSelectMode: (mode: GameMode) => void;
   onOpenRules: () => void;
+  onOpenHistory?: () => void;
   onOpenFriends?: () => void;
   incomingRequestsCount?: number;
   onFindMatch?: () => void;
@@ -168,6 +170,7 @@ interface SidebarPlayMenuProps {
   onModeClick: (mode: GameMode) => void;
   onFindMatch?: () => void;
   onOpenFriends?: () => void;
+  onOpenHistory?: () => void;
   onAuthPrompt: () => void;
   closeMobile: () => void;
 }
@@ -180,6 +183,7 @@ const SidebarPlayMenu: React.FC<SidebarPlayMenuProps> = ({
   onModeClick,
   onFindMatch,
   onOpenFriends,
+  onOpenHistory,
   onAuthPrompt,
   closeMobile,
 }) => (
@@ -281,6 +285,19 @@ const SidebarPlayMenu: React.FC<SidebarPlayMenuProps> = ({
             </SidebarMenuBadge>
           )}
         </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            tooltip="Battle History & Chronicles"
+            onClick={() => {
+              onOpenHistory?.();
+              closeMobile();
+            }}
+          >
+            <History className="w-4 h-4 text-[#8a857d] shrink-0" />
+            {!isCollapsed && <span>Match History</span>}
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroupContent>
   </SidebarGroup>
@@ -368,6 +385,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentMode,
   onSelectMode,
   onOpenRules,
+  onOpenHistory,
   onOpenFriends,
   incomingRequestsCount = 0,
   onFindMatch,
@@ -425,6 +443,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onModeClick={handleModeClick}
           onFindMatch={onFindMatch}
           onOpenFriends={onOpenFriends}
+          onOpenHistory={onOpenHistory}
           onAuthPrompt={promptGoogleSignIn}
           closeMobile={() => isMobile && setOpenMobile(false)}
         />
