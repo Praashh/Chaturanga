@@ -30,8 +30,6 @@ import { useGameHistory, type HistoryFilter } from '../hooks/useGameHistory';
 interface GameHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  isAuthenticated: boolean;
-  userId?: string;
   onLoadGameForReview?: (moves: Move[]) => void;
   onFindMatch?: () => void;
   onPlayAI?: () => void;
@@ -77,8 +75,6 @@ function formatEndReason(reason: string): string {
 export const GameHistoryModal: React.FC<GameHistoryModalProps> = ({
   isOpen,
   onClose,
-  isAuthenticated,
-  userId,
   onLoadGameForReview,
   onFindMatch,
   onPlayAI,
@@ -91,8 +87,6 @@ export const GameHistoryModal: React.FC<GameHistoryModalProps> = ({
     activeFilter,
     setActiveFilter,
   } = useGameHistory({
-    isAuthenticated,
-    userId,
     isOpen,
   });
 

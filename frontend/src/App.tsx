@@ -342,8 +342,6 @@ function ChaturangaApp() {
         onCloseLobby={() => setIsLobbyOpen(false)}
         isHistoryOpen={isHistoryOpen}
         onCloseHistory={() => setIsHistoryOpen(false)}
-        isAuthenticated={isAuthenticated}
-        userId={user?.id}
         mode={mode}
         aiDifficulty={aiDifficulty}
         onlineRoomId={onlineRoomId}

@@ -2,18 +2,19 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { GameRecord, GameHistoryStats } from '../types/history';
 import { getLocalGameHistory } from '../utils/gameHistoryStorage';
 import { getStoredSession } from '../utils/auth-session';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string)?.replace(/\/$/, '') || '';
 
 export type HistoryFilter = 'all' | 'online' | 'vs_ai' | 'pass_and_play';
 
 interface UseGameHistoryProps {
-  isAuthenticated: boolean;
-  userId?: string;
   isOpen: boolean;
+  isAuthenticated?: boolean;
 }
 
-export function useGameHistory({ isAuthenticated, isOpen }: UseGameHistoryProps) {
+export function useGameHistory({ isOpen }: UseGameHistoryProps) {
+  const { token, isAuthenticated } = useAuth();
   const [onlineGames, setOnlineGames] = useState<GameRecord[]>([]);
   const [localGames, setLocalGames] = useState<GameRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +29,8 @@ export function useGameHistory({ isAuthenticated, isOpen }: UseGameHistoryProps)
 
   // Fetch online games from backend API
   const fetchOnlineGames = useCallback(async () => {
-    if (!isAuthenticated) {
+    const authToken = token || getStoredSession();
+    if (!isAuthenticated || !authToken) {
       setOnlineGames([]);
       return;
     }
@@ -36,11 +38,10 @@ export function useGameHistory({ isAuthenticated, isOpen }: UseGameHistoryProps)
     try {
       setIsLoading(true);
       setError(null);
-      const token = getStoredSession();
 
       const res = await fetch(`${API_BASE}/api/games/history?limit=50`, {
         credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (res.ok) {
@@ -48,7 +49,7 @@ export function useGameHistory({ isAuthenticated, isOpen }: UseGameHistoryProps)
         if (data.success && Array.isArray(data.games)) {
           setOnlineGames(data.games);
         }
-      } else if (res.status !== 401) {
+      } else if (res.status !== 401 && res.status !== 404) {
         const errData = await res.json().catch(() => ({}));
         setError(errData.error || 'Failed to fetch match history');
       }
@@ -58,7 +59,7 @@ export function useGameHistory({ isAuthenticated, isOpen }: UseGameHistoryProps)
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token]);
 
   // Load both when modal opens
   useEffect(() => {

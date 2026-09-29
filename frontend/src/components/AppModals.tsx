@@ -15,8 +15,6 @@ interface AppModalsProps {
   onCloseLobby: () => void;
   isHistoryOpen: boolean;
   onCloseHistory: () => void;
-  isAuthenticated: boolean;
-  userId?: string;
   mode: GameMode;
   aiDifficulty: AIDifficulty;
   onlineRoomId: string | null;
@@ -37,8 +35,6 @@ export const AppModals: React.FC<AppModalsProps> = ({
   onCloseLobby,
   isHistoryOpen,
   onCloseHistory,
-  isAuthenticated,
-  userId,
   mode,
   aiDifficulty,
   onlineRoomId,
@@ -70,8 +66,6 @@ export const AppModals: React.FC<AppModalsProps> = ({
     <GameHistoryModal
       isOpen={isHistoryOpen}
       onClose={onCloseHistory}
-      isAuthenticated={isAuthenticated}
-      userId={userId}
       onLoadGameForReview={onLoadGameForReview}
       onFindMatch={onFindMatch}
       onPlayAI={() => onSelectAI('warrior', 'white')}
