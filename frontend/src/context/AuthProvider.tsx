@@ -1,40 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { User, AuthResponse } from '../types/auth';
 import { AuthContext } from './AuthContext';
-import { getStoredSession, setStoredSession, clearStoredSession } from '../utils/auth-session';
+import {
+  getStoredSession,
+  setStoredSession,
+  clearStoredSession,
+  fetchCurrentUser,
+} from '../utils/auth-session';
+import { useGoogleAuth } from './useGoogleAuth';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string).replace(/\/$/, '');
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential: string }) => void;
-            auto_select?: boolean;
-            cancel_on_tap_outside?: boolean;
-          }) => void;
-          prompt: (notification?: (notification: any) => void) => void;
-          renderButton: (
-            parent: HTMLElement,
-            options: {
-              type?: 'standard' | 'icon';
-              theme?: 'outline' | 'filled_blue' | 'filled_black';
-              size?: 'large' | 'medium' | 'small';
-              text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
-              shape?: 'rectangular' | 'pill' | 'circle' | 'square';
-              logo_alignment?: 'left' | 'center';
-              width?: number;
-            }
-          ) => void;
-          revoke?: (hint: string, done: () => void) => void;
-        };
-      };
-    };
-  }
-}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -50,9 +25,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [googleClientId, setGoogleClientId] = useState<string>(() =>
-    (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').replace(/^["']|["']$/g, '').trim()
-  );
 
   // Authenticate with verified Google Credential
   const loginWithGoogleCredential = useCallback(async (credential: string): Promise<boolean> => {
@@ -89,6 +61,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const { promptGoogleSignIn } = useGoogleAuth({
+    onLoginWithCredential: loginWithGoogleCredential,
+  });
+
   // Logout (clears backend HttpOnly cookie and local storage)
   const logout = useCallback(async () => {
     try {
@@ -105,116 +81,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   }, []);
 
-  // Fetch Google Client ID from backend if not present in env
-  useEffect(() => {
-    if (!googleClientId) {
-      const controller = new AbortController();
-      fetch(`${API_BASE}/api/auth/config`, { signal: controller.signal })
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
-        .then(data => {
-          if (data?.googleClientId) {
-            setGoogleClientId(String(data.googleClientId).replace(/^["']|["']$/g, '').trim());
-          }
-        })
-        .catch(() => {
-          // Ignore if offline
-        });
-      return () => controller.abort();
-    }
-  }, [googleClientId]);
-
-  // Initialize Google Identity Services
-  useEffect(() => {
-    const cleanId = googleClientId.replace(/^["']|["']$/g, '').trim();
-    if (!cleanId) return;
-
-    const checkGoogleInterval = setInterval(() => {
-      if (window.google?.accounts?.id) {
-        clearInterval(checkGoogleInterval);
-        try {
-          window.google.accounts.id.initialize({
-            client_id: cleanId,
-            callback: response => {
-              if (response.credential) {
-                loginWithGoogleCredential(response.credential);
-              }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-        } catch (e) {
-          console.warn('Google Identity Services initialization warning:', e);
-        }
-      }
-    }, 200);
-
-    return () => clearInterval(checkGoogleInterval);
-  }, [googleClientId, loginWithGoogleCredential]);
-
-  // Prompt Google Sign-In with direct OAuth fallback
-  const promptGoogleSignIn = useCallback(() => {
-    const cleanId = (googleClientId || import.meta.env.VITE_GOOGLE_CLIENT_ID || '')
-      .replace(/^["']|["']$/g, '')
-      .trim();
-
-    const openOAuthRedirect = () => {
-      if (!cleanId) {
-        console.warn('Google Client ID is missing, unable to redirect to Google Sign-In');
-        return;
-      }
-      const redirectUri = `${API_BASE}/api/auth/google/callback`;
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-        cleanId
-      )}&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&response_type=code&scope=openid%20profile%20email&prompt=select_account`;
-      window.location.href = authUrl;
-    };
-
-    if (window.google?.accounts?.id && cleanId) {
-      try {
-        window.google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            console.log(
-              'Google prompt not displayed, falling back to OAuth redirect:',
-              notification.getNotDisplayedReason()
-            );
-            openOAuthRedirect();
-          }
-        });
-      } catch (err) {
-        console.warn('Google prompt failed, falling back to OAuth redirect:', err);
-        openOAuthRedirect();
-      }
-    } else {
-      openOAuthRedirect();
-    }
-  }, [googleClientId]);
-
   // Restore session from cookie or stored token on mount (or URL ?token=...)
   useEffect(() => {
     let isMounted = true;
 
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const urlToken = urlParams?.get('token');
-    const effectiveToken = urlToken || token || getStoredSession();
+    const effectiveToken = urlToken || getStoredSession();
 
     if (urlToken) {
       setStoredSession(urlToken);
       setToken(urlToken);
     }
 
-    fetch(`${API_BASE}/api/auth/me`, {
-      credentials: 'include',
-      headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {},
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    fetchCurrentUser(effectiveToken)
       .then(data => {
         if (!isMounted) return;
         if (data?.user) {

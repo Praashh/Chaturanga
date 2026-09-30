@@ -22,7 +22,7 @@ import {
   Keyboard,
   Sparkles,
 } from 'lucide-react';
-import type { Move, GameStatus } from '../types/game';
+import type { Move, GameStatus, PieceColor } from '../types/game';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
@@ -711,47 +711,29 @@ export interface GamePanelProps {
   onOpenFriends?: () => void;
 }
 
-export const GamePanel: React.FC<GamePanelProps> = ({
+function useGamePanelNavigation({
   moves,
-  status,
-  turn,
-  showEvalBar,
-  onToggleEvalBar,
-  onNewGame,
-  onOpenRules,
-  onResign,
-  roomId,
-  onShare,
-  isSearching = false,
-  searchDuration = 0,
-  targetRating = 1500,
-  ratingSettlement,
-  onCancelSearch,
-  onPlayBot,
-  selectedMoveIndex: externalSelectedMoveIndex,
-  onSelectMove: externalOnSelectMove,
-  onGoFirst: externalOnGoFirst,
-  onGoPrevious: externalOnGoPrevious,
-  onGoNext: externalOnGoNext,
-  onGoLast: externalOnGoLast,
-  isPlaying: externalIsPlaying = false,
-  onTogglePlay: externalOnTogglePlay,
-  canGoBack: externalCanGoBack,
-  canGoForward: externalCanGoForward,
-  onFlipBoard,
-  opponentName = 'Computer (1500)',
-  opponentRating = 1500,
-  playerName = 'You',
-  playerRating = 1500,
-  gameMode = 'vs_ai',
-  onOpenLobby,
-  onOpenFriends,
-}) => {
-  const [activeTab, setActiveTab] = useState<'moves' | 'info'>('moves');
-  const [isAnalyzeActive, setIsAnalyzeActive] = useState<boolean>(true);
-  const [copied, setCopied] = useState<boolean>(false);
-
-  // Fallback internal state if not controlled externally
+  externalSelectedMoveIndex,
+  externalOnSelectMove,
+  externalOnGoFirst,
+  externalOnGoPrevious,
+  externalOnGoNext,
+  externalOnGoLast,
+  externalOnTogglePlay,
+  externalCanGoBack,
+  externalCanGoForward,
+}: {
+  moves: Move[];
+  externalSelectedMoveIndex?: number | null;
+  externalOnSelectMove?: (idx: number | null) => void;
+  externalOnGoFirst?: () => void;
+  externalOnGoPrevious?: () => void;
+  externalOnGoNext?: () => void;
+  externalOnGoLast?: () => void;
+  externalOnTogglePlay?: () => void;
+  externalCanGoBack?: boolean;
+  externalCanGoForward?: boolean;
+}) {
   const [internalSelectedMoveIndex, setInternalSelectedMoveIndex] = useState<number | null>(null);
   const selectedMoveIndex = externalSelectedMoveIndex !== undefined
     ? externalSelectedMoveIndex
@@ -796,6 +778,231 @@ export const GamePanel: React.FC<GamePanelProps> = ({
   const canGoForward = externalCanGoForward !== undefined
     ? externalCanGoForward
     : selectedMoveIndex !== null;
+
+  return {
+    selectedMoveIndex,
+    handleSelectMove,
+    handleGoFirst,
+    handleGoPrevious,
+    handleGoNext,
+    handleGoLast,
+    handleTogglePlay,
+    canGoBack,
+    canGoForward,
+  };
+}
+
+interface MovesTabContentProps {
+  status: GameStatus;
+  turn: PieceColor;
+  moves: Move[];
+  pairedMoves: PairedMove[];
+  selectedMoveIndex: number | null;
+  isStartingPositionActive: boolean;
+  startingPosRef: React.RefObject<HTMLButtonElement | null>;
+  activeMoveRef: React.RefObject<HTMLButtonElement | null>;
+  handleGoFirst: () => void;
+  handleGoPrevious: () => void;
+  handleTogglePlay: () => void;
+  handleGoNext: () => void;
+  handleGoLast: () => void;
+  handleSelectMove: (idx: number | null) => void;
+  externalIsPlaying: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onResign: () => void;
+  onFlipBoard?: () => void;
+  opponentName: string;
+  opponentRating: number;
+  playerName: string;
+  playerRating: number;
+  gameMode?: string;
+  ratingSettlement?: RatingSettlement | null;
+}
+
+const MovesTabContent: React.FC<MovesTabContentProps> = ({
+  status,
+  turn,
+  moves,
+  pairedMoves,
+  selectedMoveIndex,
+  isStartingPositionActive,
+  startingPosRef,
+  activeMoveRef,
+  handleGoFirst,
+  handleGoPrevious,
+  handleTogglePlay,
+  handleGoNext,
+  handleGoLast,
+  handleSelectMove,
+  externalIsPlaying,
+  canGoBack,
+  canGoForward,
+  onResign,
+  onFlipBoard,
+  opponentName,
+  opponentRating,
+  playerName,
+  playerRating,
+  gameMode,
+  ratingSettlement,
+}) => {
+  const isGameOver = status.type !== 'active';
+
+  return (
+    <>
+      <div
+        className={`w-full py-1.5 px-3 text-center text-[11px] font-semibold tracking-wide border-b border-[#262421] ${
+          isGameOver
+            ? 'bg-[#352717] text-[#fcd34d]'
+            : 'bg-[#181613] text-[#d4cfc7]'
+        }`}
+      >
+        <div className="flex items-center justify-center gap-2">
+          {!isGameOver && (
+            <span
+              className={`w-2 h-2 rounded-full border ${
+                turn === 'white'
+                  ? 'bg-[#f0ebe1] border-[#d4af37]'
+                  : 'bg-[#161412] border-[#555]'
+              }`}
+            />
+          )}
+          <span className="font-mono uppercase tracking-wider">{getStatusText(status, turn)}</span>
+        </div>
+      </div>
+
+      <button
+        ref={startingPosRef}
+        onClick={handleGoFirst}
+        className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium border-b border-[#262421] transition-colors cursor-pointer text-left ${
+          isStartingPositionActive
+            ? 'bg-[#3d321d] text-[#fcd34d] font-bold shadow-sm'
+            : 'text-[#a89f91] hover:bg-[#201e1b] hover:text-[#e3ded7]'
+        }`}
+        title="Starting Position (↑ / Home)"
+      >
+        <div className="flex items-center gap-2">
+          <LayoutGrid className="w-3.5 h-3.5 text-[#d4af37]" />
+          <span>Starting Position</span>
+        </div>
+        <span className="text-[10px] text-[#8a857d] font-mono">Move 0</span>
+      </button>
+
+      <ScrollArea className="flex-1 px-2.5 py-1.5 font-mono text-xs">
+        {pairedMoves.length === 0 ? (
+          <div className="h-36 flex flex-col items-center justify-center text-[#635f58] italic font-sans text-xs gap-1.5 text-center px-4">
+            <Swords className="w-5 h-5 text-[#8a857d]/40" />
+            <span>Battle awaits first command...</span>
+            <span className="text-[11px] text-[#635f58]/60">Use ← → arrow keys to explore moves once played</span>
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {pairedMoves.map(pair => (
+              <MoveRow
+                key={pair.num}
+                pair={pair}
+                selectedMoveIndex={selectedMoveIndex}
+                totalMoves={moves.length}
+                onSelectMove={idx => handleSelectMove(idx)}
+                activeRef={activeMoveRef}
+              />
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+
+      <MatchInfoCard
+        opponentName={opponentName}
+        opponentRating={opponentRating}
+        playerName={playerName}
+        playerRating={playerRating}
+        gameMode={gameMode}
+        ratingSettlement={ratingSettlement}
+      />
+
+      <NavigationToolbar
+        onGoFirst={handleGoFirst}
+        onGoPrevious={handleGoPrevious}
+        onTogglePlay={handleTogglePlay}
+        onGoNext={handleGoNext}
+        onGoLast={handleGoLast}
+        isPlaying={externalIsPlaying}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+      />
+
+      <BottomActionBar
+        onResign={onResign}
+        onFlipBoard={onFlipBoard}
+        movesCount={moves.length}
+      />
+    </>
+  );
+};
+
+export const GamePanel: React.FC<GamePanelProps> = ({
+  moves,
+  status,
+  turn,
+  showEvalBar,
+  onToggleEvalBar,
+  onNewGame,
+  onOpenRules,
+  onResign,
+  roomId,
+  onShare,
+  isSearching = false,
+  searchDuration = 0,
+  targetRating = 1500,
+  ratingSettlement,
+  onCancelSearch,
+  onPlayBot,
+  selectedMoveIndex: externalSelectedMoveIndex,
+  onSelectMove: externalOnSelectMove,
+  onGoFirst: externalOnGoFirst,
+  onGoPrevious: externalOnGoPrevious,
+  onGoNext: externalOnGoNext,
+  onGoLast: externalOnGoLast,
+  isPlaying: externalIsPlaying = false,
+  onTogglePlay: externalOnTogglePlay,
+  canGoBack: externalCanGoBack,
+  canGoForward: externalCanGoForward,
+  onFlipBoard,
+  opponentName = 'Computer (1500)',
+  opponentRating = 1500,
+  playerName = 'You',
+  playerRating = 1500,
+  gameMode = 'vs_ai',
+  onOpenLobby,
+  onOpenFriends,
+}) => {
+  const [activeTab, setActiveTab] = useState<'moves' | 'info'>('moves');
+  const [isAnalyzeActive, setIsAnalyzeActive] = useState<boolean>(true);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  const {
+    selectedMoveIndex,
+    handleSelectMove,
+    handleGoFirst,
+    handleGoPrevious,
+    handleGoNext,
+    handleGoLast,
+    handleTogglePlay,
+    canGoBack,
+    canGoForward,
+  } = useGamePanelNavigation({
+    moves,
+    externalSelectedMoveIndex,
+    externalOnSelectMove,
+    externalOnGoFirst,
+    externalOnGoPrevious,
+    externalOnGoNext,
+    externalOnGoLast,
+    externalOnTogglePlay,
+    externalCanGoBack,
+    externalCanGoForward,
+  });
 
   // Active move ref for auto-scrolling
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
@@ -843,7 +1050,6 @@ export const GamePanel: React.FC<GamePanelProps> = ({
     });
   }
 
-  const isGameOver = status.type !== 'active';
   const isStartingPositionActive = selectedMoveIndex === -1 || (selectedMoveIndex === null && moves.length === 0);
 
   return (
@@ -873,100 +1079,33 @@ export const GamePanel: React.FC<GamePanelProps> = ({
             onCancelSearch={onCancelSearch}
           />
         ) : activeTab === 'moves' ? (
-          <>
-            {/* Status Strip */}
-            <div
-              className={`w-full py-1.5 px-3 text-center text-[11px] font-semibold tracking-wide border-b border-[#262421] ${
-                isGameOver
-                  ? 'bg-[#352717] text-[#fcd34d]'
-                  : 'bg-[#181613] text-[#d4cfc7]'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                {!isGameOver && (
-                  <span
-                    className={`w-2 h-2 rounded-full border ${
-                      turn === 'white'
-                        ? 'bg-[#f0ebe1] border-[#d4af37]'
-                        : 'bg-[#161412] border-[#555]'
-                    }`}
-                  />
-                )}
-                <span className="font-mono uppercase tracking-wider">{getStatusText(status, turn)}</span>
-              </div>
-            </div>
-
-            {/* Starting Position Row */}
-            <button
-              ref={startingPosRef}
-              onClick={handleGoFirst}
-              className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium border-b border-[#262421] transition-colors cursor-pointer text-left ${
-                isStartingPositionActive
-                  ? 'bg-[#3d321d] text-[#fcd34d] font-bold shadow-sm'
-                  : 'text-[#a89f91] hover:bg-[#201e1b] hover:text-[#e3ded7]'
-              }`}
-              title="Starting Position (↑ / Home)"
-            >
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="w-3.5 h-3.5 text-[#d4af37]" />
-                <span>Starting Position</span>
-              </div>
-              <span className="text-[10px] text-[#8a857d] font-mono">Move 0</span>
-            </button>
-
-            {/* Scrollable Move Chronicle */}
-            <ScrollArea className="flex-1 px-2.5 py-1.5 font-mono text-xs">
-              {pairedMoves.length === 0 ? (
-                <div className="h-36 flex flex-col items-center justify-center text-[#635f58] italic font-sans text-xs gap-1.5 text-center px-4">
-                  <Swords className="w-5 h-5 text-[#8a857d]/40" />
-                  <span>Battle awaits first command...</span>
-                  <span className="text-[11px] text-[#635f58]/60">Use ← → arrow keys to explore moves once played</span>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {pairedMoves.map(pair => (
-                    <MoveRow
-                      key={pair.num}
-                      pair={pair}
-                      selectedMoveIndex={selectedMoveIndex}
-                      totalMoves={moves.length}
-                      onSelectMove={idx => handleSelectMove(idx)}
-                      activeRef={activeMoveRef}
-                    />
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Match Information Summary */}
-            <MatchInfoCard
-              opponentName={opponentName}
-              opponentRating={opponentRating}
-              playerName={playerName}
-              playerRating={playerRating}
-              gameMode={gameMode}
-              ratingSettlement={ratingSettlement}
-            />
-
-            {/* Navigation Toolbar (|< < ▶ > >|) */}
-            <NavigationToolbar
-              onGoFirst={handleGoFirst}
-              onGoPrevious={handleGoPrevious}
-              onTogglePlay={handleTogglePlay}
-              onGoNext={handleGoNext}
-              onGoLast={handleGoLast}
-              isPlaying={externalIsPlaying}
-              canGoBack={canGoBack}
-              canGoForward={canGoForward}
-            />
-
-            {/* Bottom Actions Bar (⚑ Abort/Resign, 🔄 Flip) */}
-            <BottomActionBar
-              onResign={onResign}
-              onFlipBoard={onFlipBoard}
-              movesCount={moves.length}
-            />
-          </>
+          <MovesTabContent
+            status={status}
+            turn={turn}
+            moves={moves}
+            pairedMoves={pairedMoves}
+            selectedMoveIndex={selectedMoveIndex}
+            isStartingPositionActive={isStartingPositionActive}
+            startingPosRef={startingPosRef}
+            activeMoveRef={activeMoveRef}
+            handleGoFirst={handleGoFirst}
+            handleGoPrevious={handleGoPrevious}
+            handleTogglePlay={handleTogglePlay}
+            handleGoNext={handleGoNext}
+            handleGoLast={handleGoLast}
+            handleSelectMove={handleSelectMove}
+            externalIsPlaying={externalIsPlaying}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
+            onResign={onResign}
+            onFlipBoard={onFlipBoard}
+            opponentName={opponentName}
+            opponentRating={opponentRating}
+            playerName={playerName}
+            playerRating={playerRating}
+            gameMode={gameMode}
+            ratingSettlement={ratingSettlement}
+          />
         ) : (
           <InfoTab
             onToggleAnalyze={() => setIsAnalyzeActive(!isAnalyzeActive)}

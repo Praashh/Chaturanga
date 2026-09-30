@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { TopBar } from './components/TopBar';
-import { Battlefield } from './components/Battlefield';
-import { GamePanel } from './components/GamePanel';
+import { GameArena } from './components/GameArena';
 import { AppModals } from './components/AppModals';
 import { OnboardingPage } from './components/OnboardingPage';
 import { AuthProvider } from './context/AuthProvider';
@@ -12,10 +10,10 @@ import { useGameActions } from './hooks/useGameActions';
 import { useAppRouting } from './hooks/useAppRouting';
 import { useMatchmakingSearch } from './hooks/useMatchmakingSearch';
 import { useMoveNavigation } from './hooks/useMoveNavigation';
-import { getRoomIdFromUrl } from './utils/roomUrl';
+import { pingBackendHealth } from './utils/auth-session';
 import { Toaster } from './components/ui/sonner';
-import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
-import type { PieceColor, GameStatus, Move } from './types/game';
+import { SidebarProvider } from './components/ui/sidebar';
+import type { Move } from './types/game';
 
 function getOpponentDisplayName(
   mode: string,
@@ -30,13 +28,6 @@ function getOpponentDisplayName(
     return opponentName || 'Awaiting Opponent...';
   }
   return 'Empty Chair';
-}
-
-function getResignedOrMatedColor(status: GameStatus): PieceColor | null {
-  if (status.type === 'resignation' || status.type === 'checkmate' || status.type === 'abandoned') {
-    return status.winner === 'white' ? 'black' : 'white';
-  }
-  return null;
 }
 
 const RealmLoadingScreen: React.FC = () => (
@@ -99,7 +90,11 @@ function ChaturangaApp() {
     playMove,
     playPieceMove,
     playCapture,
-  } = useChaturangaGame({ isAuthenticated, playerId: user?.id });
+  } = useChaturangaGame({
+    isAuthenticated,
+    playerId: user?.id,
+    playerName: user?.name,
+  });
 
   const moveNav = useMoveNavigation({
     moveHistory,
@@ -126,7 +121,10 @@ function ChaturangaApp() {
     [loadGameMoves, moveNav]
   );
 
-  // Refresh user profile whenever authoritative rating settlement occurs
+  useEffect(() => {
+    pingBackendHealth().catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (socket.ratingSettlement) {
       refreshUser();
@@ -138,33 +136,6 @@ function ChaturangaApp() {
     matchedOpponent: socket.matchedOpponent,
     playGameStart,
   });
-
-  // Synchronize authenticated user's name with online player identity
-  useEffect(() => {
-    if (user?.name) {
-      setOnlinePlayerName(user.name);
-    }
-  }, [user?.name, setOnlinePlayerName]);
-
-  useEffect(() => {
-    const apiBase = (import.meta.env.VITE_API_URL as string)?.replace(/\/$/, '');
-    fetch(`${apiBase}/api/health`, { method: 'GET' }).catch(() => { });
-  }, []);
-
-  // Listen to browser URL changes (/game/:roomId) and popstate
-  useEffect(() => {
-    const syncFromUrl = () => {
-      const urlRoomId = getRoomIdFromUrl();
-      if (urlRoomId) {
-        setMode('online');
-        setOnlineRoomId(urlRoomId);
-      }
-    };
-
-    syncFromUrl();
-    window.addEventListener('popstate', syncFromUrl);
-    return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [setMode, setOnlineRoomId]);
 
   // All auth-guarded action handlers live in this hook
   const {
@@ -198,14 +169,7 @@ function ChaturangaApp() {
     socket,
   });
 
-  const materialAdvantageWhite = Math.max(0, moveNav.displayedEvalScore);
-  const materialAdvantageBlack = Math.max(0, -moveNav.displayedEvalScore);
-  const resignedOrMatedColor = getResignedOrMatedColor(status);
   const opponentName = getOpponentDisplayName(mode, aiDifficulty, socket.opponentName);
-
-  const effectivePerspective: PieceColor = boardFlipped
-    ? (playerColor === 'white' ? 'black' : 'white')
-    : playerColor;
 
   if (isLoading) {
     return <RealmLoadingScreen />;
@@ -227,111 +191,47 @@ function ChaturangaApp() {
         onFindMatch={handleFindMatch}
       />
 
-      <SidebarInset className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
-        <TopBar
-          isMuted={isMuted}
-          onToggleMute={toggleMute}
-          soundTheme={soundTheme}
-          onToggleSoundTheme={toggleSoundTheme}
-          onOpenHistory={() => setIsHistoryOpen(true)}
-          onOpenFriends={() => setIsFriendsOpen(true)}
-          friendsCount={friends.friendsCount}
-        />
-
-        <div
-          className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row items-center justify-center p-2 sm:p-3 xl:p-4 gap-3 lg:gap-4 xl:gap-6 w-full ${mode === 'online' && onlineRoomId ? 'online-active' : ''
-            }`}
-        >
-          <Battlefield
-            mode={mode}
-            onlineRoomId={onlineRoomId}
-            socket={socket}
-            opponentName={opponentName}
-            aiDifficulty={aiDifficulty}
-            playerColor={effectivePerspective}
-            capturedWhite={moveNav.displayedCapturedWhite}
-            capturedBlack={moveNav.displayedCapturedBlack}
-            materialAdvantageWhite={materialAdvantageWhite}
-            materialAdvantageBlack={materialAdvantageBlack}
-            status={status}
-            turn={moveNav.displayedTurn}
-            searchSeconds={searchSeconds}
-            uiFlags={{
-              isMatchJustFound,
-              showEvalBar,
-              isAuthenticated,
-              isLoading,
-            }}
-            user={user}
-            friends={friends}
-            inCheck={moveNav.displayedInCheck}
-            lastMove={moveNav.displayedLastMove}
-            board={moveNav.displayedBoard}
-            legalMoves={legalMoves}
-            selectedSquare={selectedSquare}
-            resignedOrMatedColor={resignedOrMatedColor}
-            evalScore={moveNav.displayedEvalScore}
-            onlinePlayerName={onlinePlayerName}
-            handleShareGame={handleShareGame}
-            handleBoardSquareClick={handleBoardSquareClick}
-            handleBoardMove={handleBoardMove}
-            promptGoogleSignIn={promptGoogleSignIn}
-            isReviewing={moveNav.isReviewing}
-            selectedMoveIndex={moveNav.selectedMoveIndex}
-            onReturnToLive={moveNav.returnToLive}
-          />
-
-          <div
-            className="w-full lg:w-[320px] xl:w-[340px] 2xl:w-[360px] flex justify-center shrink-0"
-            style={{ height: 'var(--panel-height)' }}
-          >
-            <GamePanel
-              moves={moveHistory}
-              status={status}
-              turn={turn}
-              showEvalBar={showEvalBar}
-              onToggleEvalBar={() => setShowEvalBar(prev => !prev)}
-              onNewGame={handleNewGame}
-              onOpenRules={() => setIsRulesOpen(true)}
-              onResign={handleResign}
-              roomId={onlineRoomId}
-              onShare={handleShareGame}
-              isSearching={socket.isSearching}
-              searchDuration={searchSeconds}
-              targetRating={user?.rating ?? 1500}
-              ratingSettlement={socket.ratingSettlement}
-              onCancelSearch={socket.cancelFindMatch}
-              onPlayBot={() => {
-                socket.cancelFindMatch();
-                handleSelectAI('warrior', 'white');
-              }}
-              selectedMoveIndex={moveNav.selectedMoveIndex}
-              onSelectMove={moveNav.selectMove}
-              onGoFirst={moveNav.goToFirst}
-              onGoPrevious={moveNav.goToPrevious}
-              onGoNext={moveNav.goToNext}
-              onGoLast={moveNav.goToLast}
-              isPlaying={moveNav.isPlaying}
-              onTogglePlay={moveNav.togglePlay}
-              canGoBack={moveNav.canGoBack}
-              canGoForward={moveNav.canGoForward}
-              onFlipBoard={flipBoard}
-              opponentName={opponentName}
-              opponentRating={
-                socket.matchedOpponent?.opponentRating ??
-                (mode === 'vs_ai'
-                  ? (aiDifficulty === 'novice' ? 1200 : aiDifficulty === 'warrior' ? 1500 : 1800)
-                  : 1500)
-              }
-              playerName={user?.name || onlinePlayerName || 'You'}
-              playerRating={user?.rating ?? 1500}
-              gameMode={mode}
-              onOpenLobby={() => setIsLobbyOpen(true)}
-              onOpenFriends={() => setIsFriendsOpen(true)}
-            />
-          </div>
-        </div>
-      </SidebarInset>
+      <GameArena
+        isMuted={isMuted}
+        toggleMute={toggleMute}
+        soundTheme={soundTheme}
+        toggleSoundTheme={toggleSoundTheme}
+        setIsHistoryOpen={setIsHistoryOpen}
+        setIsFriendsOpen={setIsFriendsOpen}
+        setIsLobbyOpen={setIsLobbyOpen}
+        setIsRulesOpen={setIsRulesOpen}
+        mode={mode}
+        onlineRoomId={onlineRoomId}
+        onlinePlayerName={onlinePlayerName}
+        socket={socket}
+        opponentName={opponentName}
+        aiDifficulty={aiDifficulty}
+        playerColor={playerColor}
+        boardFlipped={boardFlipped}
+        flipBoard={flipBoard}
+        status={status}
+        turn={turn}
+        board={board}
+        moveHistory={moveHistory}
+        legalMoves={legalMoves}
+        selectedSquare={selectedSquare}
+        searchSeconds={searchSeconds}
+        isMatchJustFound={isMatchJustFound}
+        showEvalBar={showEvalBar}
+        setShowEvalBar={setShowEvalBar}
+        isAuthenticated={isAuthenticated}
+        isLoading={isLoading}
+        user={user}
+        friends={friends}
+        moveNav={moveNav}
+        handleShareGame={handleShareGame}
+        handleBoardSquareClick={handleBoardSquareClick}
+        handleBoardMove={handleBoardMove}
+        handleNewGame={handleNewGame}
+        handleResign={handleResign}
+        handleSelectAI={handleSelectAI}
+        promptGoogleSignIn={promptGoogleSignIn}
+      />
 
       <AppModals
         isRulesOpen={isRulesOpen}

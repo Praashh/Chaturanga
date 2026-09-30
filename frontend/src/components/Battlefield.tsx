@@ -262,14 +262,15 @@ interface BoardContainerProps {
   resignedOrMatedColor: PieceColor | null;
   evalScore: number;
   showEvalBar: boolean;
-  interactive: boolean;
-  showSignInOverlay: boolean;
   onSquareClick: (coord: SquareCoord) => void;
   onMove: (from: SquareCoord, to: SquareCoord) => void;
-  onSignInClick: () => void;
   isReviewing?: boolean;
   selectedMoveIndex?: number | null;
   onReturnToLive?: () => void;
+  isGameActive: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  onSignInClick: () => void;
 }
 
 const BoardContainer: React.FC<BoardContainerProps> = ({
@@ -283,57 +284,79 @@ const BoardContainer: React.FC<BoardContainerProps> = ({
   resignedOrMatedColor,
   evalScore,
   showEvalBar,
-  interactive,
-  showSignInOverlay,
+  isGameActive,
+  isAuthenticated,
+  isLoading,
   onSquareClick,
   onMove,
   onSignInClick,
-  isReviewing,
+  isReviewing = false,
   selectedMoveIndex,
   onReturnToLive,
-}) => (
-  <div className="relative shrink-0 w-full flex justify-center">
-    {isReviewing && (
-      <div className="absolute top-2 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#181613]/95 border border-[#d4af37]/70 shadow-[0_4px_20px_rgba(0,0,0,0.7)] backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
-        <span className="w-2 h-2 rounded-full bg-[#fcd34d] animate-pulse" />
-        <span className="text-xs font-semibold text-amber-200">
-          {selectedMoveIndex === -1
-            ? 'Starting Position'
-            : `Move ${Math.floor((selectedMoveIndex ?? 0) / 2) + 1} (${((selectedMoveIndex ?? 0) % 2 === 0) ? 'White' : 'Black'})`}
-        </span>
-        <span className="text-[10px] text-[#8a857d] font-mono hidden sm:inline">
-          (← → explore)
-        </span>
-        {onReturnToLive && (
-          <button
-            onClick={onReturnToLive}
-            className="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#d4af37] text-[#0e0906] hover:bg-[#fcd34d] transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
-            title="Return to current live position (↓ / End)"
-          >
-            <span>Live</span>
-            <span className="text-xs">⏭</span>
-          </button>
-        )}
-      </div>
-    )}
-    <AshtapadaBoard
-      board={board}
-      turn={turn}
-      playerColor={playerColor}
-      legalMoves={legalMoves}
-      selectedSquare={selectedSquare}
-      lastMove={lastMove}
-      inCheck={inCheck}
-      isResignedOrMated={resignedOrMatedColor}
-      evaluationScore={evalScore}
-      showEvalBar={showEvalBar}
-      interactive={interactive}
-      onSquareClick={onSquareClick}
-      onMove={onMove}
-    />
-    {showSignInOverlay && <SignInOverlay onSignInClick={onSignInClick} />}
-  </div>
-);
+}) => {
+  const effectiveLegalMoves = isReviewing ? [] : legalMoves;
+  const effectiveSelectedSquare = isReviewing ? null : selectedSquare;
+  const interactive = isGameActive && isAuthenticated && !isReviewing;
+  const showSignInOverlay = !isAuthenticated && !isLoading;
+  const handleSquareClick = isReviewing ? () => onReturnToLive?.() : onSquareClick;
+  const handleMove = isReviewing ? () => {} : onMove;
+
+  return (
+    <div className="relative shrink-0 w-full flex justify-center">
+      {isReviewing && (
+        <div className="absolute top-2 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#181613]/95 border border-[#d4af37]/70 shadow-[0_4px_20px_rgba(0,0,0,0.7)] backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+          <span className="w-2 h-2 rounded-full bg-[#fcd34d] animate-pulse" />
+          <span className="text-xs font-semibold text-amber-200">
+            {selectedMoveIndex === -1
+              ? 'Starting Position'
+              : `Move ${Math.floor((selectedMoveIndex ?? 0) / 2) + 1} (${((selectedMoveIndex ?? 0) % 2 === 0) ? 'White' : 'Black'})`}
+          </span>
+          <span className="text-[10px] text-[#8a857d] font-mono hidden sm:inline">
+            (← → explore)
+          </span>
+          {onReturnToLive && (
+            <button
+              onClick={onReturnToLive}
+              className="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#d4af37] text-[#0e0906] hover:bg-[#fcd34d] transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Return to current live position (↓ / End)"
+            >
+              <span>Live</span>
+              <span className="text-xs">⏭</span>
+            </button>
+          )}
+        </div>
+      )}
+      <AshtapadaBoard
+        board={board}
+        turn={turn}
+        playerColor={playerColor}
+        legalMoves={effectiveLegalMoves}
+        selectedSquare={effectiveSelectedSquare}
+        lastMove={lastMove}
+        inCheck={inCheck}
+        isResignedOrMated={resignedOrMatedColor}
+        evaluationScore={evalScore}
+        showEvalBar={showEvalBar}
+        interactive={interactive}
+        onSquareClick={handleSquareClick}
+        onMove={handleMove}
+      />
+      {showSignInOverlay && <SignInOverlay onSignInClick={onSignInClick} />}
+    </div>
+  );
+};
+
+function getActiveTurnState(
+  isGameActive: boolean,
+  turn: PieceColor,
+  playerColor: PieceColor,
+  isAuthenticated: boolean,
+  isReviewing: boolean
+) {
+  const isOpponentTurn = isGameActive && turn !== playerColor && !isReviewing;
+  const isSelfTurn = isGameActive && isAuthenticated && turn === playerColor && !isReviewing;
+  return { isOpponentTurn, isSelfTurn };
+}
 
 export const Battlefield: React.FC<BattlefieldProps> = ({
   mode,
@@ -397,8 +420,13 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
 
   const selfName = getSelfDisplayName(user, mode, onlinePlayerName);
   const isGameActive = status.type === 'active';
-  const isOpponentTurn = isGameActive && turn !== playerColor && !isReviewing;
-  const isSelfTurn = isGameActive && isAuthenticated && turn === playerColor && !isReviewing;
+  const { isOpponentTurn, isSelfTurn } = getActiveTurnState(
+    isGameActive,
+    turn,
+    playerColor,
+    isAuthenticated,
+    isReviewing
+  );
 
   return (
     <div
@@ -441,17 +469,18 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
         board={board}
         turn={turn}
         playerColor={playerColor}
-        legalMoves={isReviewing ? [] : legalMoves}
-        selectedSquare={isReviewing ? null : selectedSquare}
+        legalMoves={legalMoves}
+        selectedSquare={selectedSquare}
         lastMove={lastMove}
         inCheck={inCheck}
         resignedOrMatedColor={resignedOrMatedColor}
         evalScore={evalScore}
         showEvalBar={showEvalBar}
-        interactive={isGameActive && isAuthenticated && !isReviewing}
-        showSignInOverlay={!isAuthenticated && !isLoading}
-        onSquareClick={isReviewing ? () => onReturnToLive?.() : handleBoardSquareClick}
-        onMove={isReviewing ? () => {} : handleBoardMove}
+        isGameActive={isGameActive}
+        isAuthenticated={isAuthenticated}
+        isLoading={isLoading}
+        onSquareClick={handleBoardSquareClick}
+        onMove={handleBoardMove}
         onSignInClick={promptGoogleSignIn}
         isReviewing={isReviewing}
         selectedMoveIndex={selectedMoveIndex}

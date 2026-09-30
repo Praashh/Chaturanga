@@ -19,7 +19,7 @@ import {
 import { getBestMove } from '../engine/ai';
 import { useAudio } from '@sounds';
 import { useChaturangaSocket } from './useChaturangaSocket';
-import { updateGameRoomUrl } from '../utils/roomUrl';
+import { updateGameRoomUrl, getRoomIdFromUrl } from '../utils/roomUrl';
 import { recordGameOutcome } from '../utils/gameHistoryStorage';
 
 interface BoardSnapshot {
@@ -35,6 +35,7 @@ interface BoardSnapshot {
 interface UseChaturangaGameOptions {
   isAuthenticated?: boolean;
   playerId?: string;
+  playerName?: string;
 }
 
 export function useChaturangaGame(options?: UseChaturangaGameOptions) {
@@ -51,14 +52,28 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
   const [legalMoves, setLegalMoves] = useState<SquareCoord[]>([]);
 
   // Settings & Modes
-  const [mode, setMode] = useState<GameMode>('pass_and_play');
+  const initialRoomId = getRoomIdFromUrl();
+  const [mode, setMode] = useState<GameMode>(() => (initialRoomId ? 'online' : 'pass_and_play'));
   const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>('warrior');
   const [playerColor, setPlayerColor] = useState<PieceColor>('white');
   const [boardFlipped, setBoardFlipped] = useState<boolean>(false);
 
   // Online Multiplayer Room
-  const [onlineRoomId, setOnlineRoomId] = useState<string | null>(null);
-  const [onlinePlayerName, setOnlinePlayerName] = useState<string>('Maharaja');
+  const [onlineRoomId, setOnlineRoomId] = useState<string | null>(() => initialRoomId);
+  const [onlinePlayerName, setOnlinePlayerName] = useState<string>(() => options?.playerName || 'Maharaja');
+  const effectivePlayerName = options?.playerName || onlinePlayerName;
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlRoomId = getRoomIdFromUrl();
+      if (urlRoomId) {
+        setMode('online');
+        setOnlineRoomId(urlRoomId);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // History stack for Undo
   const historyStack = useRef<BoardSnapshot[]>([]);
@@ -176,7 +191,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         playCheck();
       }
     },
-    [playCapture, playPromote, playPieceMove, playGameEnd, playCheck]
+    [playCapture, playPromote, playPieceMove, playGameEnd, playCheck, recordOutcome, moveHistory]
   );
 
   // Restart / Reset game
@@ -238,7 +253,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
   // WebSocket connection (only connects when room exists AND player is authenticated)
   const socket = useChaturangaSocket({
     roomId: isAuthenticated ? onlineRoomId : null,
-    playerName: onlinePlayerName,
+    playerName: effectivePlayerName,
     playerId: options?.playerId,
     onRemoteMove: handleRemoteMove,
     onMatchFound: handleMatchFound,
@@ -315,7 +330,25 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
         socket.sendMove(from, to);
       }
     },
-    [isAuthenticated, board, turn, status, moveHistory, capturedWhite, capturedBlack, lastMove, playCapture, playPromote, playPieceMove, playGameEnd, playCheck, mode, playerColor, socket]
+    [
+      isAuthenticated,
+      board,
+      turn,
+      status,
+      moveHistory,
+      capturedWhite,
+      capturedBlack,
+      lastMove,
+      playCapture,
+      playPromote,
+      playPieceMove,
+      playGameEnd,
+      playCheck,
+      mode,
+      playerColor,
+      socket,
+      recordOutcome,
+    ]
   );
 
   // Handle Square Selection and Clicking
@@ -505,7 +538,7 @@ export function useChaturangaGame(options?: UseChaturangaGameOptions) {
     isMuted,
     canUndo: historyStack.current.length > 0,
     onlineRoomId,
-    onlinePlayerName,
+    onlinePlayerName: effectivePlayerName,
     socket,
     setMode,
     setAiDifficulty,
