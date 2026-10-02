@@ -35,16 +35,9 @@ export const PieceThemeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const togglePieceTheme = useCallback(() => {
-    setPieceThemeState(prev => {
-      const next = prev === 'standard' ? 'vedic' : 'standard';
-      try {
-        localStorage.setItem(STORAGE_KEY, next);
-      } catch {
-        // safe fallback
-      }
-      return next;
-    });
-  }, []);
+    const nextTheme = pieceTheme === 'standard' ? 'vedic' : 'standard';
+    setPieceTheme(nextTheme);
+  }, [pieceTheme, setPieceTheme]);
 
   // Listen to cross-tab storage changes
   useEffect(() => {
