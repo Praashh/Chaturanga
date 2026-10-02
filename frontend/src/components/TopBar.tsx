@@ -1,5 +1,6 @@
 import { History, Volume2, VolumeX, User as UserIcon, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { usePieceTheme } from '../context/PieceThemeContext';
 import { ProfileDropdown } from './ProfileDropdown';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -31,6 +32,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   friendsCount,
 }) => {
   const { user, isAuthenticated, promptGoogleSignIn } = useAuth();
+  const { pieceTheme, togglePieceTheme } = usePieceTheme();
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -84,24 +86,27 @@ export const TopBar: React.FC<TopBarProps> = ({
             </Tooltip>
           )}
 
-          {onToggleSoundTheme && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onToggleSoundTheme}
-                  className="h-8 px-2 text-[11px] font-mono gap-1 text-[#d4af37] hover:text-[#fcd34d] hover:bg-[#262421] hidden sm:inline-flex"
-                  aria-label="Toggle Sound Atmosphere"
-                >
-                  <span>{soundTheme === 'vedic' ? 'Vedic SFX' : 'Classic SFX'}</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Switch Audio: {soundTheme === 'vedic' ? 'Vedic War SFX (Shankha & Dundubhi)' : 'Classic Hardwood'}
-              </TooltipContent>
-            </Tooltip>
-          )}
+
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={togglePieceTheme}
+                className="h-8 px-2 sm:px-2.5 text-[11px] font-mono gap-1 text-[#d4af37] hover:text-[#fcd34d] hover:bg-[#262421] border border-[#d4af37]/25 rounded-md"
+                aria-label="Toggle Piece Style"
+              >
+                <span className="text-xs">{pieceTheme === 'standard' ? '♟️' : '🛞'}</span>
+                <span className="hidden sm:inline font-medium">
+                  {pieceTheme === 'standard' ? 'Standard' : 'Vedic'}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Piece Style: {pieceTheme === 'standard' ? 'Standard (Chess.com)' : 'Ancient Vedic'} — Click to toggle
+            </TooltipContent>
+          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>

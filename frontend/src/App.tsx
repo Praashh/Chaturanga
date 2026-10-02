@@ -4,6 +4,7 @@ import { GameArena } from './components/GameArena';
 import { AppModals } from './components/AppModals';
 import { OnboardingPage } from './components/OnboardingPage';
 import { AuthProvider } from './context/AuthProvider';
+import { PieceThemeProvider } from './context/PieceThemeContext';
 import { useAuth } from './context/AuthContext';
 import { useChaturangaGame } from './hooks/useChaturangaGame';
 import { useGameActions } from './hooks/useGameActions';
@@ -259,8 +260,11 @@ function ChaturangaApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <ChaturangaApp />
-      <Toaster />
+      <PieceThemeProvider>
+        <ChaturangaApp />
+        <Toaster />
+      </PieceThemeProvider>
     </AuthProvider>
   );
 }
+
