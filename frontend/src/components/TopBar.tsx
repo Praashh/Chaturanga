@@ -25,8 +25,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMobileMenu,
   isMuted,
   onToggleMute,
-  soundTheme = 'vedic',
-  onToggleSoundTheme,
   onOpenHistory,
   onOpenFriends,
   friendsCount,
