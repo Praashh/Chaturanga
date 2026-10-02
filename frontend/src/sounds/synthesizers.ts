@@ -180,7 +180,7 @@ export function synthGajaPound(ctx: AudioContext): void {
   gain.gain.setValueAtTime(0.7, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
 
-  const bufferSize = ctx.sampleRate * 0.05;
+  const bufferSize = Math.floor(ctx.sampleRate * 0.05);
   const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const output = noiseBuffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) {

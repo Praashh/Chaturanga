@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { DropdownMenu, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { SidebarTrigger } from './ui/sidebar';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 
 interface TopBarProps {
   onToggleMobileMenu?: () => void;
@@ -30,7 +32,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   friendsCount,
 }) => {
   const { user, isAuthenticated, promptGoogleSignIn } = useAuth();
-  const { pieceTheme, togglePieceTheme } = usePieceTheme();
+  const { pieceTheme, setPieceTheme } = usePieceTheme();
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -84,27 +86,31 @@ export const TopBar: React.FC<TopBarProps> = ({
             </Tooltip>
           )}
 
-
-
+          {/* Vedic / Standard Mode Switch */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={togglePieceTheme}
-                className="h-8 px-2 sm:px-2.5 text-[11px] font-mono gap-1 text-[#d4af37] hover:text-[#fcd34d] hover:bg-[#262421] border border-[#d4af37]/25 rounded-md"
-                aria-label="Toggle Piece Style"
-              >
-                <span className="text-xs">{pieceTheme === 'standard' ? '♟️' : '🛞'}</span>
-                <span className="hidden sm:inline font-medium">
-                  {pieceTheme === 'standard' ? 'Standard' : 'Vedic'}
-                </span>
-              </Button>
+              <div className="flex items-center gap-2 select-none px-1">
+                <Switch
+                  id="vedic-mode-switch"
+                  checked={pieceTheme === 'vedic'}
+                  onCheckedChange={(checked) => setPieceTheme(checked ? 'vedic' : 'standard')}
+                  aria-label="Toggle Vedic Mode"
+                />
+                <Label
+                  htmlFor="vedic-mode-switch"
+                  className="text-xs sm:text-sm font-medium text-[#e3ded7] hover:text-white cursor-pointer select-none transition-colors"
+                >
+                  {pieceTheme === 'vedic' ? 'Vedic' : 'Standard'} Mode
+                </Label>
+              </div>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Piece Style: {pieceTheme === 'standard' ? 'Standard (Chess.com)' : 'Ancient Vedic'} — Click to toggle
+              {pieceTheme === 'vedic'
+                ? 'Vedic Mode Active (Ancient Pieces & Traditional Instrument SFX)'
+                : 'Standard Mode Active (Classic Chess.com Pieces & Sounds)'}
             </TooltipContent>
           </Tooltip>
+
 
           <Tooltip>
             <TooltipTrigger asChild>

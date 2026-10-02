@@ -1,14 +1,24 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { CHESS_SOUNDS, type SoundType, type SoundTheme } from './types';
+import {
+  synthShankha,
+  synthGhanta,
+  synthRajaMove,
+  synthMantriMove,
+  synthGajaPound,
+  synthAshvaMove,
+  synthRathaMove,
+  synthBronzeClash,
+} from './synthesizers';
+import { usePieceTheme } from '../context/PieceThemeContext';
 
 export function useAudio() {
+  const { pieceTheme, togglePieceTheme } = usePieceTheme();
+  const isVedic = pieceTheme === 'vedic';
+  const soundTheme: SoundTheme = isVedic ? 'vedic' : 'classic';
+
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     return localStorage.getItem('chaturanga_muted') === 'true';
-  });
-
-  // Keep the soundTheme state for API compatibility, but it no longer affects behavior
-  const [soundTheme, setSoundTheme] = useState<SoundTheme>(() => {
-    return (localStorage.getItem('chaturanga_sound_theme') as SoundTheme) || 'classic';
   });
 
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -88,8 +98,8 @@ export function useAudio() {
   }, []);
 
   const toggleSoundTheme = useCallback(() => {
-    setSoundTheme(prev => (prev === 'vedic' ? 'classic' : 'vedic'));
-  }, []);
+    togglePieceTheme();
+  }, [togglePieceTheme]);
 
   useEffect(() => {
     try {
@@ -140,7 +150,7 @@ export function useAudio() {
     [isMuted, getAudioContext]
   );
 
-  // Standard clean chess sounds — no synthesizers
+  // Standard step sounds
   const playMove = useCallback(() => {
     playSound('move', 0.95);
   }, [playSound]);
@@ -149,32 +159,104 @@ export function useAudio() {
     playSound('opponentMove', 0.95);
   }, [playSound]);
 
+  // Capture with bronze weapon clash in Vedic theme
   const playCapture = useCallback(() => {
-    playSound('capture', 1.0);
-  }, [playSound]);
+    if (isMuted) return;
+    if (isVedic) {
+      const ctx = getAudioContext();
+      if (ctx) {
+        synthBronzeClash(ctx);
+      }
+      playSound('capture', 0.85);
+    } else {
+      playSound('capture', 1.0);
+    }
+  }, [isMuted, isVedic, getAudioContext, playSound]);
 
+  // Check with sacred Ghanta bell
   const playCheck = useCallback(() => {
+    if (isMuted) return;
+    if (isVedic) {
+      const ctx = getAudioContext();
+      if (ctx) {
+        synthGhanta(ctx);
+        return;
+      }
+    }
     playSound('check', 0.9);
-  }, [playSound]);
+  }, [isMuted, isVedic, getAudioContext, playSound]);
 
+  // Game start with sacred Shankha horn
   const playGameStart = useCallback(() => {
+    if (isMuted) return;
+    if (isVedic) {
+      const ctx = getAudioContext();
+      if (ctx) {
+        synthShankha(ctx, 'battle_start');
+        return;
+      }
+    }
     playSound('gameStart', 0.9);
-  }, [playSound]);
+  }, [isMuted, isVedic, getAudioContext, playSound]);
 
+  // Game end with victory Shankha fanfare
   const playGameEnd = useCallback(() => {
+    if (isMuted) return;
+    if (isVedic) {
+      const ctx = getAudioContext();
+      if (ctx) {
+        synthShankha(ctx, 'victory');
+        return;
+      }
+    }
     playSound('gameEnd', 0.95);
-  }, [playSound]);
+  }, [isMuted, isVedic, getAudioContext, playSound]);
 
-  // Piece-specific move sounds — now just plays the standard move/opponent sound
+  // Piece-specific move sounds (Raja, Mantri, Gaja, Ashva, Ratha, Padati)
   const playPieceMove = useCallback(
     (pieceType: string, isOpponent = false) => {
       if (isMuted) return;
-      // All pieces use the same clean move sound
-      void pieceType; // unused but kept for API compatibility
-      if (isOpponent) playOpponentMove();
-      else playMove();
+
+      if (!isVedic) {
+        if (isOpponent) playOpponentMove();
+        else playMove();
+        return;
+      }
+
+      const ctx = getAudioContext();
+      if (!ctx) {
+        if (isOpponent) playOpponentMove();
+        else playMove();
+        return;
+      }
+
+      switch (pieceType) {
+        case 'raja':
+          synthRajaMove(ctx);
+          playSound('move', 0.6);
+          break;
+        case 'mantri':
+          synthMantriMove(ctx);
+          playSound('move', 0.6);
+          break;
+        case 'gaja':
+          synthGajaPound(ctx);
+          break;
+        case 'ashva':
+          synthAshvaMove(ctx);
+          break;
+        case 'ratha':
+          synthRathaMove(ctx);
+          playSound('move', 0.65);
+          break;
+        case 'padati':
+        default:
+          if (isOpponent) playOpponentMove();
+          else playMove();
+          break;
+      }
     },
-    [isMuted, playOpponentMove, playMove]
+    [isMuted, isVedic, getAudioContext, playOpponentMove, playMove, playSound]
   );
 
   const playIllegal = useCallback(() => {
