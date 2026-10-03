@@ -172,7 +172,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
               <TabsTrigger value="requests" className="gap-2 data-[state=active]:bg-[#2a2418] data-[state=active]:text-[#fcd34d]">
                 <Mail className="w-3.5 h-3.5" />
-                <span>Requests</span>
+                <span>Requests{incomingCount > 0 ? ` (${incomingCount})` : ''}</span>
                 {incomingCount > 0 && (
                   <span className="w-2 h-2 rounded-full bg-amber-400" />
                 )}

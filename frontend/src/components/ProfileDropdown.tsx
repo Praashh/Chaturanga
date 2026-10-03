@@ -13,12 +13,14 @@ interface ProfileDropdownProps {
   onOpenFriends?: () => void;
   onOpenHistory?: () => void;
   friendsCount?: number;
+  incomingRequestsCount?: number;
 }
 
 export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
   onOpenFriends,
   onOpenHistory,
   friendsCount,
+  incomingRequestsCount,
 }) => {
   const { user, logout } = useAuth();
 
@@ -101,9 +103,16 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
           <Users className="w-3.5 h-3.5 text-[#d4af37]" />
           <span>Friends & Allies</span>
         </div>
-        {friendsCount !== undefined && (
-          <Badge variant="mono">{friendsCount}</Badge>
-        )}
+        <div className="flex items-center gap-1.5">
+          {incomingRequestsCount !== undefined && incomingRequestsCount > 0 && (
+            <Badge variant="gold" className="text-[10px] px-1.5 py-0 font-bold">
+              {incomingRequestsCount} new
+            </Badge>
+          )}
+          {friendsCount !== undefined && (
+            <Badge variant="mono">{friendsCount}</Badge>
+          )}
+        </div>
       </DropdownMenuItem>
 
       {/* Sign Out Button */}

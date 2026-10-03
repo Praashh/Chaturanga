@@ -264,7 +264,11 @@ const SidebarPlayMenu: React.FC<SidebarPlayMenuProps> = ({
 
         <SidebarMenuItem>
           <SidebarMenuButton
-            tooltip="Friends & Allies"
+            tooltip={
+              incomingRequestsCount > 0
+                ? `Friends & Allies (${incomingRequestsCount} pending)`
+                : 'Friends & Allies'
+            }
             onClick={() => {
               if (!isAuthenticated) {
                 onAuthPrompt();
@@ -274,7 +278,12 @@ const SidebarPlayMenu: React.FC<SidebarPlayMenuProps> = ({
               closeMobile();
             }}
           >
-            <UserPlus className="w-4 h-4 text-[#d4af37] shrink-0" />
+            <div className="relative shrink-0 flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-[#d4af37]" />
+              {incomingRequestsCount > 0 && isCollapsed && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#161512]" />
+              )}
+            </div>
             {!isCollapsed && <span>Friends</span>}
           </SidebarMenuButton>
           {incomingRequestsCount > 0 && !isCollapsed && (

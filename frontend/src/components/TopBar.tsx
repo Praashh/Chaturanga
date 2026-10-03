@@ -21,6 +21,7 @@ interface TopBarProps {
   onOpenHistory: () => void;
   onOpenFriends?: () => void;
   friendsCount?: number;
+  incomingRequestsCount?: number;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -30,6 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenHistory,
   onOpenFriends,
   friendsCount,
+  incomingRequestsCount,
 }) => {
   const { user, isAuthenticated, promptGoogleSignIn } = useAuth();
   const { pieceTheme, setPieceTheme } = usePieceTheme();
@@ -72,17 +74,25 @@ export const TopBar: React.FC<TopBarProps> = ({
                     onOpenFriends();
                   }}
                   className="text-[#8a857d] hover:text-[#e3ded7] hover:bg-[#262421] relative"
-                  aria-label="Friends and Allies"
+                  aria-label={
+                    incomingRequestsCount !== undefined && incomingRequestsCount > 0
+                      ? `Friends and Allies (${incomingRequestsCount} pending friend request${incomingRequestsCount > 1 ? 's' : ''})`
+                      : 'Friends and Allies'
+                  }
                 >
                   <Users className="w-4 h-4 text-[#d4af37]" />
-                  {friendsCount !== undefined && friendsCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#d4af37] text-black font-bold text-[9px] flex items-center justify-center">
-                      {friendsCount}
+                  {incomingRequestsCount !== undefined && incomingRequestsCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-[#d4af37] text-black font-bold text-[9px] flex items-center justify-center">
+                      {incomingRequestsCount > 99 ? '99+' : incomingRequestsCount}
                     </span>
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Friends & Allies</TooltipContent>
+              <TooltipContent side="bottom">
+                {incomingRequestsCount !== undefined && incomingRequestsCount > 0
+                  ? `${incomingRequestsCount} pending friend request${incomingRequestsCount > 1 ? 's' : ''}`
+                  : 'Friends & Allies'}
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -168,6 +178,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onOpenFriends={onOpenFriends}
                 onOpenHistory={onOpenHistory}
                 friendsCount={friendsCount}
+                incomingRequestsCount={incomingRequestsCount}
               />
             </DropdownMenu>
           ) : (

@@ -138,6 +138,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenFriends={() => setIsFriendsOpen(true)}
         friendsCount={friends.friendsCount}
+        incomingRequestsCount={friends.incomingCount}
       />
 
       <div
